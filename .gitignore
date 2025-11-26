@@ -1,0 +1,32 @@
+
+# Node artifact files
+node_modules/
+dist/
+# Compiled Java class files
+*.class,
+.env
+
+# Log files
+*.log
+
+# Package files
+*.jar
+
+# Maven
+target/
+dist/
+
+# JetBrains IDE
+.idea/
+
+# Large media files
+*.mp4
+*.tiff
+*.avi
+*.flv
+*.mov
+*.wmv
+
+.qodo
+.vercel
+.README
