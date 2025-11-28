@@ -39,7 +39,8 @@ export class BaseRepository<T> {
     await this.model.deleteOne(filter);
   }
 
-  async deleteMany(filter: FilterQuery<T>): Promise<void> {
-    await this.model.deleteMany(filter);
+  async deleteMany(filter: FilterQuery<T>): Promise<{ deletedCount?: number }> {
+    const result = await this.model.deleteMany(filter);
+    return { deletedCount: result.deletedCount };
   }
 }

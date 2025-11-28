@@ -2,12 +2,12 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import app from "./app";
-import { connectMongo } from "./db/mongo";
+import { connectDB } from "./db/mongo";
 import { logger } from "./utils/logger";
 
 const startServer = async () => {
   try {
-    await connectMongo();
+    await connectDB();
 
     const PORT = process.env.PORT || 5002;
     app.listen(PORT, () => {

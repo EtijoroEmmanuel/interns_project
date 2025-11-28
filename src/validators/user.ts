@@ -12,10 +12,6 @@ export const signupSchema = Joi.object({
     "string.empty": "Password is required",
     "string.min": "Password must be at least 6 characters",
   }),
-  confirmPassword: Joi.string().required().valid(Joi.ref("password")).messages({
-    "any.only": "Passwords do not match",
-    "string.empty": "Confirm password is required",
-  }),
 });
 
 export const loginSchema = Joi.object({
@@ -54,14 +50,9 @@ export const forgotPasswordSchema = Joi.object({
 });
 
 export const resetPasswordSchema = Joi.object({
-  token: Joi.string().required().messages({
-    "string.empty": "Reset token cannot be empty",
-    "any.required": "Reset token is required",
-  }),
-  newPassword: Joi.string().min(6).required().messages({
-    "string.empty": "New password cannot be empty",
-    "string.min": "Password must be at least 6 characters",
-    "any.required": "New password is required",
+  newPassword: Joi.string().min(8).required().messages({
+    "string.empty": "New password is required",
+    "string.min": "Password must be at least 8 characters",
   }),
 });
 

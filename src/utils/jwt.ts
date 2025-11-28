@@ -14,20 +14,6 @@ export class JWTUtil {
   private static JWT_EXPIRES = env.AUTH?.JWT_EXPIRES;
 
   static generateToken(payload: TokenPayload): string {
-    if (!this.JWT_SECRET) {
-      throw new ErrorResponse(
-        "JWT_SECRET is not defined in environment variables",
-        500
-      );
-    }
-
-    if (!this.JWT_EXPIRES) {
-      throw new ErrorResponse(
-        "JWT_EXPIRES is not defined properly in environment variables",
-        500
-      );
-    }
-
     return jwt.sign(payload, this.JWT_SECRET, {
       expiresIn: this.JWT_EXPIRES as jwt.SignOptions["expiresIn"],
     });
@@ -76,7 +62,8 @@ export class JWTUtil {
       throw new ErrorResponse("No token provided or invalid format", 401);
     }
 
-    const parts = authHeader.split(" ");
+    const parts = authHeader.split(" ").filter((part) => part.length > 0);
+
     if (parts.length !== 2 || !parts[1]) {
       throw new ErrorResponse(
         "Bearer token missing in authorization header",
@@ -86,7 +73,6 @@ export class JWTUtil {
 
     return parts[1];
   }
-
   static isTokenAboutToExpire(token: string): boolean {
     if (!token) return true;
 

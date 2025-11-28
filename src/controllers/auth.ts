@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "../services/auth";
+import { JWTUtil } from "../utils/jwt";
 import {
   signupSchema,
   loginSchema,
@@ -9,28 +10,19 @@ import {
   emailParamSchema,
   verifyOtpSchema,
 } from "../validators/user";
-
-
-export interface AuthenticatedRequest extends Request {
-  user?: { _id: string; role: string; email?: string };
-}
+import { validate } from "../utils/validator";
+import ErrorResponse from "../utils/errorResponse";
 
 export class AuthController {
   static async signup(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = signupSchema.validate(req.body, { abortEarly: false });
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
-
-      const { phoneNumber, email, password, confirmPassword } = req.body;
+      const value = validate(signupSchema, req.body);
+      const { phoneNumber, email, password } = value;
 
       const { user, message: otpMessage } = await AuthService.signup({
         phoneNumber,
         email,
         password,
-        confirmPassword,
       });
 
       res.status(201).json({
@@ -53,19 +45,22 @@ export class AuthController {
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = loginSchema.validate(req.body, { abortEarly: false });
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
+      const value = validate(loginSchema, req.body);
+      const { email, password } = value;
 
-      const { email, password } = req.body;
-      const { accessToken, user } = await AuthService.login(email, password);
+      const { user } = await AuthService.login(email, password);
+
+      const payload = {
+        userId: user._id.toString(),
+        role: user.role,
+        email: user.email,
+      };
+
+      const accessToken = JWTUtil.generateToken(payload);
 
       res.status(200).json({
         success: true,
         message: "Login successful",
-        accessToken,
         data: {
           id: user._id,
           phoneNumber: user.phoneNumber,
@@ -74,6 +69,7 @@ export class AuthController {
           isVerified: user.isVerified,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          accessToken,
         },
       });
     } catch (err) {
@@ -83,15 +79,10 @@ export class AuthController {
 
   static async verifyOtp(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = verifyOtpSchema.validate(req.body);
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
+      const value = validate(verifyOtpSchema, req.body);
+      const { email, otp } = value;
 
-      const { email, otp } = req.body;
       const message = await AuthService.verifyOtp(email, otp);
-
       res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
@@ -100,15 +91,10 @@ export class AuthController {
 
   static async resendOtp(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = emailParamSchema.validate(req.body);
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
+      const value = validate(emailParamSchema, req.body);
+      const { email } = value;
 
-      const { email } = req.body;
       const { message } = await AuthService.resendOtp(email);
-
       res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
@@ -117,16 +103,11 @@ export class AuthController {
 
   static async forgotPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = forgotPasswordSchema.validate(req.body);
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
+      const value = validate(forgotPasswordSchema, req.body);
+      const { email } = value;
 
-      const { email } = req.body;
-      const { message, resetToken } = await AuthService.forgotPassword(email);
-
-      res.status(200).json({ success: true, message, resetToken });
+      const { message } = await AuthService.forgotPassword(email);
+      res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
     }
@@ -134,36 +115,31 @@ export class AuthController {
 
   static async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const { token } = req.params;
-      const { error } = resetPasswordSchema.validate(req.body);
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
+      const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
 
-      const { newPassword } = req.body;
+      const { newPassword } = validate(resetPasswordSchema, req.body);
+
       const message = await AuthService.resetPassword(token, newPassword);
-
       res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
     }
   }
 
-  static async changePassword(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const { error } = changePasswordSchema.validate(req.body);
-      if (error) {
-        const message = error.details.map(d => d.message).join(", ");
-        return res.status(400).json({ success: false, message });
-      }
-
       if (!req.user) {
-        return res.status(401).json({ success: false, message: "Not authenticated" });
+        return next(new ErrorResponse("User not authenticated", 401));
       }
 
-      const { currentPassword, newPassword } = req.body;
-      const message = await AuthService.changePassword(req.user._id, currentPassword, newPassword);
+      const value = validate(changePasswordSchema, req.body);
+      const { currentPassword, newPassword } = value;
+
+      const message = await AuthService.changePassword(
+        req.user._id.toString(),
+        currentPassword,
+        newPassword
+      );
 
       res.status(200).json({ success: true, message });
     } catch (err) {

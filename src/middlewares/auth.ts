@@ -4,48 +4,21 @@ import ErrorResponse from "../utils/errorResponse";
 import { JWTUtil } from "../utils/jwt";
 import rateLimit from "express-rate-limit";
 
-export type UserDocumentWithMethods = UserDocument & {
-  changedPasswordAfter: (JWTTimestamp: number) => boolean;
-};
-
-export interface AuthenticatedRequest extends Request {
-  user?: UserDocumentWithMethods;
-}
-
-export const formatDate = (date: Date): string =>
-  new Date(date).toLocaleString("en-US", {
-    weekday: "short",
-    year: "numeric",
-    month: "short",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
-
-export const protect = async (
-  req: AuthenticatedRequest,
+export const authenticate = async (
+  req: Request,
   _res: Response,
   next: NextFunction
 ): Promise<void> => {
   try {
-    let token: string | undefined;
+    const authHeader = req.headers.authorization;
 
-    if (req.headers.authorization?.startsWith("Bearer ")) {
-      token = req.headers.authorization.split(" ")[1];
-    } else if (req.cookies?.jwt) {
-      token = req.cookies.jwt;
-    }
-
-    if (!token) {
+    if (!authHeader) {
       return next(
-        new ErrorResponse(
-          "You are not logged in. Please log in to continue.",
-          401
-        )
+        new ErrorResponse("You are not logged in. Please log in.", 401)
       );
     }
+
+    const token = JWTUtil.extractTokenFromHeader(authHeader);
 
     const decoded = JWTUtil.verifyToken(token);
 
@@ -53,7 +26,10 @@ export const protect = async (
       return next(new ErrorResponse("Malformed authentication token.", 401));
     }
 
-    const currentUser = await User.findById(decoded.userId);
+    const currentUser: UserDocument | null = await User.findById(
+      decoded.userId
+    );
+
     if (!currentUser) {
       return next(
         new ErrorResponse(
@@ -73,6 +49,7 @@ export const protect = async (
     }
 
     req.user = currentUser;
+
     next();
   } catch (error) {
     return next(
@@ -85,12 +62,12 @@ export const protect = async (
 };
 
 export const isAdmin = (
-  req: AuthenticatedRequest,
+  req: Request,
   _res: Response,
   next: NextFunction
 ): void => {
   if (!req.user) {
-    return next(new ErrorResponse("Not authenticated. Please log in.", 401));
+    return next(new ErrorResponse("User not authenticated", 401));
   }
 
   if (req.user.role !== UserRole.ADMIN) {

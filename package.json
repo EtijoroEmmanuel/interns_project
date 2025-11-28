@@ -37,6 +37,7 @@
     "@types/express": "^5.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/morgan": "^1.9.10",
+    "@types/request": "^2.48.13",
     "nodemon": "^3.1.11",
     "pino-pretty": "^13.1.2",
     "ts-node": "^10.9.2",

@@ -1,6 +1,4 @@
-import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { JWTUtil } from "../utils/jwt";
 import { User, UserType, UserDocument } from "../models/user";
 import { env } from "../config/env";
 import { sendEmail } from "../utils/email";
@@ -15,6 +13,7 @@ import {
   NotFoundException,
   ConflictException,
 } from "../utils/exception";
+import { CryptoUtil } from "../utils/cryptoUtil";
 
 export class AuthService {
   private static CLIENT_URL = env.APP.CLIENT;
@@ -30,21 +29,16 @@ export class AuthService {
   }
 
   static async signup(
-    userData: Partial<UserType> & { confirmPassword?: string }
+    userData: Partial<UserType>
   ): Promise<{ user: UserDocument; message: string }> {
-    const { password, confirmPassword, email, ...rest } = userData;
+    const { password, email, ...rest } = userData;
 
-    if (!password || !confirmPassword)
-      throw new BadRequestException(
-        "Password and confirm password are required"
-      );
-    if (password !== confirmPassword)
-      throw new BadRequestException("Passwords do not match");
+    if (!password) throw new BadRequestException("Password is required");
 
     const existingUser = await User.findOne({ email });
     if (existingUser) throw new ConflictException("Email already in use");
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await CryptoUtil.hash(password);
 
     const user: UserDocument = await User.create({
       ...rest,
@@ -71,11 +65,11 @@ export class AuthService {
   static async login(
     email: string,
     password: string
-  ): Promise<{ accessToken: string; user: UserDocument }> {
+  ): Promise<{ user: UserDocument }> {
     const user = await User.findOne({ email }).select("+password");
     if (!user) throw new UnauthorizedException("Incorrect email or password");
 
-    const isMatch = await bcrypt.compare(password, user.password!);
+    const isMatch = await CryptoUtil.compare(password, user.password!);
     if (!isMatch)
       throw new UnauthorizedException("Incorrect email or password");
 
@@ -84,18 +78,18 @@ export class AuthService {
         "User not verified. Please check your email."
       );
 
-    const payload = { userId: user._id.toString(), role: user.role };
-    const accessToken = JWTUtil.generateToken(payload);
-
-    return { accessToken, user };
+    return { user };
   }
 
-  static async verifyOtp(email: string, otp: string): Promise<string> {
+  static async verifyOtp(
+    email: string,
+    otp: string
+  ): Promise<{ message: string }> {
     const user = await User.findOne({ email }).select(
       "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
     );
     if (!user) throw new NotFoundException("User not found");
-    if (user.isVerified) return "Email is already verified";
+    if (user.isVerified) return { message: "Email is already verified" };
 
     if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires)
       throw new BadRequestException("No OTP found. Please request a new one.");
@@ -142,7 +136,7 @@ export class AuthService {
       }
     );
 
-    return "Email verified successfully!";
+    return { message: "Email verified successfully!" };
   }
 
   static async resendOtp(email: string): Promise<{ message: string }> {
@@ -182,13 +176,14 @@ export class AuthService {
 
     await user.save();
 
-    // const resetLink =  `${this.CLIENT_URL}/reset-password/${resetToken}`;
-    const resetLink = `http://localhost:7047/reset-password/${resetToken}`;
+    const resetLink = `${this.CLIENT_URL}/reset-password/${resetToken}`;
     await sendEmail({
       to: user.email,
       subject: "Reset Your Boat Cruise Password",
       html: resetPasswordTemplate(resetLink, user.email),
     });
+
+    console.log("RESET PASSWORD TOKEN:", resetToken);
 
     return { message: "Password reset email sent successfully!", resetToken };
   }
@@ -196,7 +191,7 @@ export class AuthService {
   static async resetPassword(
     token: string,
     newPassword: string
-  ): Promise<string> {
+  ): Promise<{ message: string }> {
     const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
@@ -205,9 +200,8 @@ export class AuthService {
     });
     if (!user) throw new BadRequestException("Token is invalid or has expired");
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    const hashedPassword = await CryptoUtil.hash(newPassword);
 
-    // Use updateOne with $set and $unset for atomic update
     await User.updateOne(
       { _id: user._id },
       {
@@ -216,24 +210,24 @@ export class AuthService {
       }
     );
 
-    return "Password reset successfully!";
+    return { message: "Password reset successfully!" };
   }
 
   static async changePassword(
     userId: string,
     currentPassword: string,
     newPassword: string
-  ): Promise<string> {
+  ): Promise<{ message: string }> {
     const user = await User.findById(userId).select("+password");
     if (!user) throw new BadRequestException("User not found");
 
-    const isMatch = await bcrypt.compare(currentPassword, user.password!);
+    const isMatch = await CryptoUtil.compare(currentPassword, user.password!);
     if (!isMatch)
       throw new BadRequestException("Current password is incorrect");
 
-    user.password = await bcrypt.hash(newPassword, 10);
+    user.password = await CryptoUtil.hash(newPassword);
     await user.save();
 
-    return "Password changed successfully!";
+    return { message: "Password changed successfully!" };
   }
 }

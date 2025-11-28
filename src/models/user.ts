@@ -11,6 +11,7 @@ const userSchema = new Schema(
     phoneNumber: {
       type: String,
       trim: true,
+      required: true,
     },
     email: {
       type: String,
@@ -39,17 +40,20 @@ const userSchema = new Schema(
     },
     emailVerificationOtpExpires: {
       type: Date,
+      select: false, 
     },
     emailVerificationAttempts: {
       type: Number,
       default: 0,
+      select: false, 
     },
     passwordResetToken: {
       type: String,
-      select: false,
+      select: false, 
     },
     passwordResetExpires: {
       type: Date,
+      select: false, 
     },
     passwordChangedAt: {
       type: Date,
