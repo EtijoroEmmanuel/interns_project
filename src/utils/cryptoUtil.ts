@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { env } from "../config/env";
 
 export class CryptoUtil {
-  private static saltRounds = env.AUTH.BCRYPT_SALT_ROUNDS || 10;
+  private static saltRounds = Number(env.AUTH.BCRYPT_SALT_ROUNDS) || 10;
 
   static async hash(value: string): Promise<string> {
     return bcrypt.hash(value, this.saltRounds);

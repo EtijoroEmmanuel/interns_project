@@ -66,17 +66,25 @@ export class AuthService {
     email: string,
     password: string
   ): Promise<{ user: UserDocument }> {
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) throw new UnauthorizedException("Incorrect email or password");
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      "+password"
+    );
+
+    if (!user) {
+      throw new UnauthorizedException("Incorrect email or password");
+    }
 
     const isMatch = await CryptoUtil.compare(password, user.password!);
-    if (!isMatch)
-      throw new UnauthorizedException("Incorrect email or password");
 
-    if (!user.isVerified)
+    if (!isMatch) {
+      throw new UnauthorizedException("Incorrect email or password");
+    }
+
+    if (!user.isVerified) {
       throw new ForbiddenException(
         "User not verified. Please check your email."
       );
+    }
 
     return { user };
   }
@@ -163,7 +171,7 @@ export class AuthService {
 
   static async forgotPassword(
     email: string
-  ): Promise<{ message: string; resetToken: string }> {
+  ): Promise<{ message: string }> {
     const user = await User.findOne({ email }).select("+password");
     if (!user) throw new NotFoundException("User not found");
 
@@ -183,11 +191,8 @@ export class AuthService {
       html: resetPasswordTemplate(resetLink, user.email),
     });
 
-    console.log("RESET PASSWORD TOKEN:", resetToken);
-
-    return { message: "Password reset email sent successfully!", resetToken };
+    return { message: "Password reset email sent successfully!" };
   }
-
   static async resetPassword(
     token: string,
     newPassword: string
