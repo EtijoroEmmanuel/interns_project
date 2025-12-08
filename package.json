@@ -7,9 +7,9 @@
     "tough-e": "npm:tough-cookie@^2.5.0"
   },
   "scripts": {
+    "dev": "ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts"
+    "start": "node dist/index.js"
   },
   "repository": {
     "type": "git",
