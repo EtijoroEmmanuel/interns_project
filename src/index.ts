@@ -1,38 +1,25 @@
-import dotenv from "dotenv"
-dotenv.config()
+import dotenv from "dotenv";
+import app from "./app";
+import { connectDB } from "./db/mongo";
+import { logger } from "./utils/logger";
 
-import app from "./app"
-import { connectDB } from "./db/mongo"
-import { logger } from "./utils/logger"
+dotenv.config();
 
+const startServer = async () => {
+  try {
+    await connectDB();
 
-let isConnected = false;
-
-const initializeDB = async () => {
-  if (!isConnected) {
-    try {
-      await connectDB();
-      isConnected = true;
-    } catch (error: any) {
-      logger.error(`Failed to connect to database: ${error.message}`)
+    const PORT = process.env.PORT || 5002;
+    app.listen(PORT, () => {
+      logger.info(`Server is running on port ${PORT}!!!!`);
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      logger.error(`Failed to start the server: ${error.message}`);
+    } else {
+      logger.error(`Failed to start the server: Unknown error`);
     }
   }
 };
 
-
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5002
-  
-  connectDB().catch((error) => {
-    logger.error(`Failed to connect to database: ${error.message}`)
-  })
-  
-  app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}!!!!`)
-  })
-}
-
-export default async (req: any, res: any) => {
-  await initializeDB();
-  return app(req, res);
-};
+startServer();
