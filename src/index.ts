@@ -5,25 +5,15 @@ import app from "./app";
 import { connectDB } from "./db/mongo";
 import { logger } from "./utils/logger";
 
-const startServer = async () => {
-  try {
-    await connectDB();
+connectDB().catch((error) => {
+  logger.error(`Failed to connect to database: ${error.message}`);
+});
 
-    const PORT = process.env.PORT || 5002;
-    app.listen(PORT, () => {
-      logger.info(`Server is running on port ${PORT}!!!!`);
-    });
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      logger.error(`Failed to start the server: ${error.message}`);
-    } else {
-      logger.error(
-        { error: String(error) },
-        "Failed to start the server: Unknown error",
-        error
-      );
-    }
-  }
-};
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5002;
+  app.listen(PORT, () => {
+    logger.info(`Server is running on port ${PORT}!!!!`);
+  });
+}
 
-startServer();
+export default app;
