@@ -1,19 +1,18 @@
-import dotenv from "dotenv";
-dotenv.config();
+import dotenv from "dotenv"
+dotenv.config()
 
-import app from "./app";
-import { connectDB } from "./db/mongo";
-import { logger } from "./utils/logger";
+import app from "./app"
+import { connectDB } from "./db/mongo"
+import { logger } from "./utils/logger"
 
 connectDB().catch((error) => {
-  logger.error(`Failed to connect to database: ${error.message}`);
-});
+  logger.error(`Failed to connect to database: ${error.message}`)
+})
 
-if (process.env.NODE_ENV !== 'production') {
-  const PORT = process.env.PORT || 5002;
-  app.listen(PORT, () => {
-    logger.info(`Server is running on port ${PORT}!!!!`);
-  });
-}
+const PORT = process.env.PORT || 5002
 
-export default app;
+app.listen(PORT, () => {
+  logger.info(`Server is running on port ${PORT}!!!!`)
+})
+
+export default app
