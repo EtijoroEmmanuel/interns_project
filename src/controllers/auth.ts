@@ -25,9 +25,16 @@ export class AuthController {
         password,
       });
 
+      // Generate verification token
+      const verificationToken = JWTUtil.generateVerificationToken(
+        user._id.toString(),
+        user.email
+      );
+
       res.status(201).json({
         success: true,
         message: otpMessage,
+        verificationToken, // Client needs this to verify OTP
         data: {
           id: user._id,
           phoneNumber: user.phoneNumber,
@@ -42,6 +49,7 @@ export class AuthController {
       next(err);
     }
   }
+
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
@@ -77,17 +85,31 @@ export class AuthController {
     }
   }
 
-  static async verifyOtp(req: Request, res: Response, next: NextFunction) {
-    try {
-      const value = validate(verifyOtpSchema, req.body);
-      const { email, otp } = value;
+ static async verifyOtp(req: Request, res: Response, next: NextFunction) {
+  try {
+    const value = validate(verifyOtpSchema, req.body);
+    const { otp } = value;
 
-      const message = await AuthService.verifyOtp(email, otp);
-      res.status(200).json({ success: true, message });
-    } catch (err) {
-      next(err);
-    }
+    
+    const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
+    const { userId } = JWTUtil.verifyVerificationToken(token);
+
+    const { message } = await AuthService.verifyOtp(userId, otp);
+   
+    const authToken = JWTUtil.generateToken({
+      userId,
+      role: "user" 
+    });
+
+    res.status(200).json({ 
+      success: true, 
+      message,
+      token: authToken
+    });
+  } catch (err) {
+    next(err);
   }
+}
 
   static async resendOtp(req: Request, res: Response, next: NextFunction) {
     try {
@@ -147,3 +169,5 @@ export class AuthController {
     }
   }
 }
+
+

@@ -25,10 +25,6 @@ export const loginSchema = Joi.object({
 });
 
 export const verifyOtpSchema = Joi.object({
-  email: Joi.string().email().required().messages({
-    "string.empty": "Email is required",
-    "string.email": "Invalid email address",
-  }),
   otp: Joi.string().length(6).required().messages({
     "string.empty": "OTP is required",
     "string.length": "OTP must be 6 digits",
@@ -72,3 +68,4 @@ export const emailParamSchema = Joi.object({
     "string.email": "Invalid email address",
   }),
 });
+

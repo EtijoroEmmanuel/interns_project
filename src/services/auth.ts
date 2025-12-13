@@ -66,78 +66,86 @@ export class AuthService {
     email: string,
     password: string
   ): Promise<{ user: UserDocument }> {
-    const user = await User.findOne({ email }).select("+password");
-    if (!user) throw new UnauthorizedException("Incorrect email or password");
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
+      "+password"
+    );
+
+    if (!user) {
+      throw new UnauthorizedException("Incorrect email or password");
+    }
 
     const isMatch = await CryptoUtil.compare(password, user.password!);
-    if (!isMatch)
-      throw new UnauthorizedException("Incorrect email or password");
 
-    if (!user.isVerified)
+    if (!isMatch) {
+      throw new UnauthorizedException("Incorrect email or password");
+    }
+
+    if (!user.isVerified) {
       throw new ForbiddenException(
         "User not verified. Please check your email."
       );
+    }
 
     return { user };
   }
 
-  static async verifyOtp(
-    email: string,
-    otp: string
-  ): Promise<{ message: string }> {
-    const user = await User.findOne({ email }).select(
-      "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
-    );
-    if (!user) throw new NotFoundException("User not found");
-    if (user.isVerified) return { message: "Email is already verified" };
+ static async verifyOtp(
+  userId: string,
+  otp: string
+): Promise<{ message: string }> {
+  const user = await User.findById(userId).select(
+    "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
+  );
+  
+  if (!user) throw new NotFoundException("User not found");
+  if (user.isVerified) return { message: "Email is already verified" };
 
-    if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires)
-      throw new BadRequestException("No OTP found. Please request a new one.");
+  if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires)
+    throw new BadRequestException("No OTP found. Please request a new one.");
 
-    if (user.emailVerificationOtpExpires.getTime() < Date.now()) {
-      await User.updateOne(
-        { _id: user._id },
-        {
-          $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-          $set: { emailVerificationAttempts: 0 },
-        }
-      );
-      throw new BadRequestException(
-        "OTP has expired. Please request a new one."
-      );
-    }
-
-    user.emailVerificationAttempts = (user.emailVerificationAttempts || 0) + 1;
-    if (user.emailVerificationAttempts > this.MAX_OTP_ATTEMPTS) {
-      await User.updateOne(
-        { _id: user._id },
-        {
-          $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-          $set: { emailVerificationAttempts: 0 },
-        }
-      );
-      throw new BadRequestException(
-        "Too many attempts. OTP invalidated. Request a new one."
-      );
-    }
-
-    const hashed = this.hashOtp(otp);
-    if (hashed !== user.emailVerificationOtp) {
-      await user.save();
-      throw new BadRequestException("Invalid OTP");
-    }
-
-    user.isVerified = true;
+  if (user.emailVerificationOtpExpires.getTime() < Date.now()) {
     await User.updateOne(
       { _id: user._id },
       {
         $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-        $set: { isVerified: true, emailVerificationAttempts: 0 },
+        $set: { emailVerificationAttempts: 0 },
       }
     );
-
-    return { message: "Email verified successfully!" };
+    throw new BadRequestException(
+      "OTP has expired. Please request a new one."
+    );
   }
+
+  user.emailVerificationAttempts = (user.emailVerificationAttempts || 0) + 1;
+  if (user.emailVerificationAttempts > this.MAX_OTP_ATTEMPTS) {
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
+        $set: { emailVerificationAttempts: 0 },
+      }
+    );
+    throw new BadRequestException(
+      "Too many attempts. OTP invalidated. Request a new one."
+    );
+  }
+
+  const hashed = this.hashOtp(otp);
+  if (hashed !== user.emailVerificationOtp) {
+    await user.save();
+    throw new BadRequestException("Invalid OTP");
+  }
+
+  await User.updateOne(
+    { _id: user._id },
+    {
+      $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
+      $set: { isVerified: true, emailVerificationAttempts: 0 },
+    }
+  );
+
+  return { message: "Email verified successfully!" };
+}
 
   static async resendOtp(email: string): Promise<{ message: string }> {
     const user = await User.findOne({ email }).select(
@@ -163,7 +171,7 @@ export class AuthService {
 
   static async forgotPassword(
     email: string
-  ): Promise<{ message: string; resetToken: string }> {
+  ): Promise<{ message: string }> {
     const user = await User.findOne({ email }).select("+password");
     if (!user) throw new NotFoundException("User not found");
 
@@ -183,11 +191,8 @@ export class AuthService {
       html: resetPasswordTemplate(resetLink, user.email),
     });
 
-    console.log("RESET PASSWORD TOKEN:", resetToken);
-
-    return { message: "Password reset email sent successfully!", resetToken };
+    return { message: "Password reset email sent successfully!" };
   }
-
   static async resetPassword(
     token: string,
     newPassword: string
