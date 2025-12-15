@@ -1,5 +1,4 @@
 import { Schema, model, InferSchemaType, HydratedDocument } from "mongoose";
-import bcrypt from "bcryptjs";
 
 export enum UserRole {
   USER = "user",
@@ -55,6 +54,11 @@ const userSchema = new Schema(
       type: Date,
       select: false, 
     },
+    passwordResetAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
     passwordChangedAt: {
       type: Date,
     },
@@ -71,13 +75,6 @@ userSchema.methods.changedPasswordAfter = function (JWTTimestamp: number) {
   }
   return false;
 };
-
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) return next();
-  this.password = await bcrypt.hash(this.password, 12);
-  this.passwordChangedAt = new Date();
-  next();
-});
 
 export type UserType = InferSchemaType<typeof userSchema>;
 

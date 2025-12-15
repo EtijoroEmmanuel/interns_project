@@ -46,7 +46,12 @@ export const forgotPasswordSchema = Joi.object({
 });
 
 export const resetPasswordSchema = Joi.object({
-  newPassword: Joi.string().min(8).required().messages({
+  otp: Joi.string().length(6).pattern(/^\d+$/).required().messages({
+    "string.empty": "OTP is required",
+    "string.length": "OTP must be exactly 6 digits",
+    "string.pattern.base": "OTP must contain only numbers",
+  }),
+  password: Joi.string().min(8).required().messages({
     "string.empty": "New password is required",
     "string.min": "Password must be at least 8 characters",
   }),

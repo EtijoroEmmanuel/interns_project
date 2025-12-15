@@ -57,10 +57,9 @@ export const verifyOtpTemplate = (otp: string, email: string): string => `
 </html>
 `;
 
-
 export const resetPasswordTemplate = (
-  link: string,
-  firstName: string
+  otp: string,
+  email: string
 ): string => `
 <!DOCTYPE html>
 <html lang="en">
@@ -86,38 +85,43 @@ export const resetPasswordTemplate = (
 
           <tr>
             <td style="font-size:16px; color:#333; line-height:1.6;">
-              <p>Hello <strong>${firstName}</strong>,</p>
-              <p>We received a request to reset your password. Click the button below to continue:</p>
+              <p>Hello <strong>${email}</strong>,</p>
+              <p>We received a request to reset your password. Use the verification code below to continue:</p>
             </td>
           </tr>
 
           <tr>
             <td align="center" style="padding:25px 0;">
-              <a href="${link}" 
-                style="
-                  background:#dc3545;
-                  color:#fff;
-                  padding:15px 35px;
-                  text-decoration:none;
-                  font-size:18px;
-                  border-radius:6px;
-                  display:inline-block;
+              <div style="
+                background:#f8f9fa;
+                border:2px dashed #0d6efd;
+                padding:20px 40px;
+                border-radius:8px;
+                display:inline-block;
+              ">
+                <span style="
+                  font-size:32px;
                   font-weight:bold;
+                  color:#0d6efd;
+                  letter-spacing:8px;
+                  font-family:'Courier New', monospace;
                 ">
-                Reset Password
-              </a>
+                  ${otp}
+                </span>
+              </div>
             </td>
           </tr>
 
           <tr>
-            <td style="font-size:14px; color:#555; line-height:1.6;">
-              <p>If this wasn’t you, please ignore this email.</p>
+            <td style="font-size:14px; color:#555; line-height:1.6; text-align:center;">
+              <p style="margin:10px 0;"><strong>This code will expire in 10 minutes.</strong></p>
+              <p style="margin:10px 0;">If you didn't request a password reset, please ignore this email.</p>
             </td>
           </tr>
 
           <tr>
-            <td align="center" style="font-size:12px; color:#777; padding-top:25px;">
-              © ${new Date().getFullYear()} Boat Cruise. All rights reserved.
+            <td align="center" style="font-size:12px; color:#777; padding-top:25px; border-top:1px solid #eee; margin-top:20px;">
+              <p style="margin:5px 0;">© ${new Date().getFullYear()} Boat Cruise. All rights reserved.</p>
             </td>
           </tr>
 

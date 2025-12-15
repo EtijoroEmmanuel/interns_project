@@ -25,7 +25,6 @@ export class AuthController {
         password,
       });
 
-      // Generate verification token
       const verificationToken = JWTUtil.generateVerificationToken(
         user._id.toString(),
         user.email
@@ -34,7 +33,7 @@ export class AuthController {
       res.status(201).json({
         success: true,
         message: otpMessage,
-        verificationToken, // Client needs this to verify OTP
+        verificationToken,
         data: {
           id: user._id,
           phoneNumber: user.phoneNumber,
@@ -49,7 +48,6 @@ export class AuthController {
       next(err);
     }
   }
-
 
   static async login(req: Request, res: Response, next: NextFunction) {
     try {
@@ -85,31 +83,24 @@ export class AuthController {
     }
   }
 
- static async verifyOtp(req: Request, res: Response, next: NextFunction) {
-  try {
-    const value = validate(verifyOtpSchema, req.body);
-    const { otp } = value;
+  static async verifyOtp(req: Request, res: Response, next: NextFunction) {
+    try {
+      const value = validate(verifyOtpSchema, req.body);
+      const { otp } = value;
 
-    
-    const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
-    const { userId } = JWTUtil.verifyVerificationToken(token);
+      const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
+      const { userId, email } = JWTUtil.verifyVerificationToken(token);
 
-    const { message } = await AuthService.verifyOtp(userId, otp);
-   
-    const authToken = JWTUtil.generateToken({
-      userId,
-      role: "user" 
-    });
+      const { message } = await AuthService.verifyOtp(email, otp);
 
-    res.status(200).json({ 
-      success: true, 
-      message,
-      token: authToken
-    });
-  } catch (err) {
-    next(err);
+      res.status(200).json({
+        success: true,
+        message,
+      });
+    } catch (err) {
+      next(err);
+    }
   }
-}
 
   static async resendOtp(req: Request, res: Response, next: NextFunction) {
     try {
@@ -137,17 +128,16 @@ export class AuthController {
 
   static async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
+      const value = validate(resetPasswordSchema, req.body);
+      const { otp, password } = value;
 
-      const { newPassword } = validate(resetPasswordSchema, req.body);
-
-      const message = await AuthService.resetPassword(token, newPassword);
+      const { message } = await AuthService.resetPassword(otp, password);
       res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
     }
   }
-
+  
   static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
@@ -157,7 +147,7 @@ export class AuthController {
       const value = validate(changePasswordSchema, req.body);
       const { currentPassword, newPassword } = value;
 
-      const message = await AuthService.changePassword(
+      const { message } = await AuthService.changePassword(
         req.user._id.toString(),
         currentPassword,
         newPassword
@@ -169,5 +159,3 @@ export class AuthController {
     }
   }
 }
-
-
