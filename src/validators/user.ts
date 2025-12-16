@@ -25,9 +25,15 @@ export const loginSchema = Joi.object({
 });
 
 export const verifyOtpSchema = Joi.object({
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
+  }),
   otp: Joi.string().length(6).required().messages({
     "string.empty": "OTP is required",
     "string.length": "OTP must be 6 digits",
+    "any.required": "OTP is required",
   }),
 });
 
@@ -54,6 +60,11 @@ export const resetPasswordSchema = Joi.object({
   password: Joi.string().min(8).required().messages({
     "string.empty": "New password is required",
     "string.min": "Password must be at least 8 characters",
+  }),
+  email: Joi.string().email().required().messages({
+    "string.empty": "Email is required",
+    "string.email": "Please provide a valid email address",
+    "any.required": "Email is required",
   }),
 });
 
