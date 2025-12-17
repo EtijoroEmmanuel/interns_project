@@ -55,11 +55,6 @@ const userSchema = new Schema(
       default: 0,
       select: false,
     },
-    passwordResetAttempts: {
-      type: Number,
-      default: 0,
-      select: false,
-    },
     passwordChangedAt: {
       type: Date,
     },
