@@ -20,10 +20,10 @@ export interface IENVIRONMENT {
     BREVO_API_KEY: string;
   };
   CLOUDINARY: {
-    CLOUD_UPLOAD_PRESET: string;
-    CLOUDINARY_API_KEY: string;
-    CLOUDINARY_API_SECRET: string;
-    CLOUDINARY_CLOUD_NAME: string;
+    UPLOAD_PRESET: string;
+    API_KEY: string;
+    API_SECRET: string;
+    CLOUD_NAME: string;
   };
 }
 

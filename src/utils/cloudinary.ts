@@ -3,9 +3,9 @@ import { env } from "../config/env";
 import ErrorResponse from "./errorResponse";
 
 cloudinary.config({
-  cloud_name: env.CLOUDINARY.CLOUDINARY_CLOUD_NAME,
-  api_key: env.CLOUDINARY.CLOUDINARY_API_KEY,
-  api_secret: env.CLOUDINARY.CLOUDINARY_API_SECRET,
+  cloud_name: env.CLOUDINARY.CLOUD_NAME,
+  api_key: env.CLOUDINARY.API_KEY,
+  api_secret: env.CLOUDINARY.API_SECRET,
 });
 
 export interface PresignedSignature {
@@ -23,15 +23,15 @@ export class CloudinaryUtil {
 
       const signature = cloudinary.utils.api_sign_request(
         { timestamp },
-        env.CLOUDINARY.CLOUDINARY_API_SECRET
+        env.CLOUDINARY.API_SECRET
       );
 
       return {
-        cloudName: env.CLOUDINARY.CLOUDINARY_CLOUD_NAME,
-        apiKey: env.CLOUDINARY.CLOUDINARY_API_KEY,
+        cloudName: env.CLOUDINARY.CLOUD_NAME,
+        apiKey: env.CLOUDINARY.API_KEY,
         timestamp,
         signature,
-        uploadPreset: env.CLOUDINARY.CLOUD_UPLOAD_PRESET,
+        uploadPreset: env.CLOUDINARY.UPLOAD_PRESET,
       };
     } catch (error) {
       console.error('Cloudinary signature generation failed:', error);

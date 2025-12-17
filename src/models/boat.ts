@@ -1,27 +1,60 @@
 import { Schema, model, InferSchemaType, Document } from "mongoose";
-import { formatDate } from "../utils/date";
+
+export const COMPANY_NAMES = [
+  "lagoMarineService",
+  "partyBoatLagos",
+  "sunsetYachts",
+] as const;
+
+export const BOAT_TYPES = [
+  "luxuryYacht",
+  "speedboat",
+  "sailboat",
+  "partyBoat",
+] as const;
 
 const mediaSchema = new Schema({
   url: {
     type: String,
     required: true,
   },
-
   publicId: {
     type: String,
     required: true,
   },
-
   type: {
     type: String,
     enum: ["image", "video"],
     required: true,
   },
+});
 
-  isPrimary: {
-    type: Boolean,
-    default: false,
+const boatPackageSchema = new Schema({
+  packageName: {
+    type: String,
+    required: true,
+    trim: true,
   },
+  packageType: {
+    type: String,
+    required: true,
+    index: true,
+  },
+  description: {
+    type: String,
+    required: true,
+  },
+  features: [
+    {
+      type: String,
+      trim: true,
+    },
+  ],
+  media: {
+    type: [mediaSchema],
+    default: [],
+  },
+
 });
 
 const boatSchema = new Schema(
@@ -30,23 +63,26 @@ const boatSchema = new Schema(
       type: String,
       required: true,
     },
-
     companyName: {
       type: String,
       required: true,
+      enum: COMPANY_NAMES,
       index: true,
     },
-
+    boatType: {
+      type: String,
+      required: true,
+      enum: BOAT_TYPES,
+      index: true,
+    },
     description: {
       type: String,
       required: true,
     },
-
     location: {
       type: String,
       required: true,
     },
-
     capacity: {
       type: Number,
       required: true,
@@ -59,28 +95,24 @@ const boatSchema = new Schema(
         trim: true,
       },
     ],
-
     pricePerHour: {
-      type: Schema.Types.Decimal128,
+      type: Number,
       required: true,
-      get: (v: any) => (v ? parseFloat(v.toString()) : null),
+      min: 0,
       index: true,
     },
-
-    status: {
-      type: String,
-      enum: ["available", "unavailable"],
-      default: "available",
+    isAvailable: {
+      type: Boolean,
+      default: true,
       index: true,
     },
-
     media: {
       type: [mediaSchema],
       default: [],
     },
-    date: {
-      type: String,
-      default: () => formatDate(new Date()),
+    packages: {
+      type: [boatPackageSchema],
+      default: [],
     },
   },
   {
@@ -90,26 +122,8 @@ const boatSchema = new Schema(
   }
 );
 
-boatSchema.pre("save", function (next) {
-  const primaryMedia = this.media.filter((m) => m.isPrimary);
-
-  if (primaryMedia.length === 0 && this.media.length > 0) {
-    this.media[0].isPrimary = true;
-  } else if (primaryMedia.length > 1) {
-    let foundFirst = false;
-
-    this.media.forEach((item) => {
-      if (item.isPrimary && !foundFirst) {
-        foundFirst = true;
-      } else if (item.isPrimary) {
-        item.isPrimary = false;
-      }
-    });
-  }
-
-  next();
-});
-
+export type Media = InferSchemaType<typeof mediaSchema>;
+export type BoatPackage = InferSchemaType<typeof boatPackageSchema>;
 export type Boat = InferSchemaType<typeof boatSchema> & Document;
 
 export const BoatModel = model<Boat>("Boat", boatSchema);

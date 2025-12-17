@@ -1,20 +1,21 @@
 import { BaseRepository } from "./baseRepository";
 import { BoatModel, Boat } from "../models/boat";
-import { Types } from "mongoose";
+import { BoatFilters, Pagination, PackageWithBoatInfo } from "../types/boatTypes";
+import { FilterQuery } from "mongoose";
 
-interface BoatFilters {
+interface BoatQueryFilter extends FilterQuery<Boat> {
   companyName?: string;
-  status?: "available" | "unavailable";
-  capacityMin?: number;
-  capacityMax?: number;
-  priceMin?: number;
-  priceMax?: number;
-  boatName?: string;
-}
-
-interface PaginationOptions {
-  page?: number;
-  limit?: number;
+  boatType?: string;
+  isAvailable?: boolean;
+  boatName?: { $regex: string; $options: string };
+  capacity?: {
+    $gte?: number;
+    $lte?: number;
+  };
+  pricePerHour?: {
+    $gte?: number;
+    $lte?: number;
+  };
 }
 
 export class BoatRepository extends BaseRepository<Boat> {
@@ -22,48 +23,87 @@ export class BoatRepository extends BaseRepository<Boat> {
     super(BoatModel);
   }
 
-  async toggleStatus(id: string | Types.ObjectId): Promise<Boat | null> {
-    const boat = await this.findById(id);
-    if (!boat) return null;
-
-    const newStatus = boat.status === "available" ? "unavailable" : "available";
-    return this.findByIdAndUpdate(id, { status: newStatus });
-  }
-
   async getBoatsWithFilters(
-    filters: BoatFilters = {},
-    pagination: PaginationOptions = { page: 1, limit: 10 }
-  ): Promise<{ data: Boat[]; total: number; page: number; limit: number }> {
-    const query: any = {};
+  filters: BoatFilters,
+  pagination: Pagination
+): Promise<{ data: Boat[]; total: number; page: number; limit: number }> {
+  const query: BoatQueryFilter = {
+    ...(filters.companyName && filters.companyName !== "allCompanies" && { 
+      companyName: filters.companyName 
+    }),
+    ...(filters.boatType && filters.boatType !== "allBoatTypes" && { 
+      boatType: filters.boatType 
+    }),
+    ...(filters.isAvailable !== undefined && { 
+      isAvailable: filters.isAvailable 
+    }),
+    ...(filters.boatName && { 
+      boatName: { $regex: filters.boatName, $options: "i" } 
+    }),
+    ...((filters.capacityMin !== undefined || filters.capacityMax !== undefined) && {
+      capacity: {
+        ...(filters.capacityMin !== undefined && { $gte: filters.capacityMin }),
+        ...(filters.capacityMax !== undefined && { $lte: filters.capacityMax }),
+      }
+    }),
+    ...((filters.priceMin !== undefined || filters.priceMax !== undefined) && {
+      pricePerHour: {
+        ...(filters.priceMin !== undefined && { $gte: filters.priceMin }),
+        ...(filters.priceMax !== undefined && { $lte: filters.priceMax }),
+      }
+    }),
+  };
 
-    if (filters.companyName) query.companyName = filters.companyName;
+  const skip = (pagination.page - 1) * pagination.limit;
 
-    if (filters.status) query.status = filters.status;
+  const [data, total] = await Promise.all([
+    this.model.find(query).skip(skip).limit(pagination.limit).sort({ createdAt: -1 }),
+    this.model.countDocuments(query),
+  ]);
 
-    if (filters.boatName)
-      query.boatName = { $regex: filters.boatName, $options: "i" };
+  return { data, total, page: pagination.page, limit: pagination.limit };
+}
 
-    if (filters.capacityMin || filters.capacityMax) {
-      query.capacity = {};
-      if (filters.capacityMin) query.capacity.$gte = filters.capacityMin;
-      if (filters.capacityMax) query.capacity.$lte = filters.capacityMax;
-    }
-
-    if (filters.priceMin || filters.priceMax) {
-      query.price_per_hour = {};
-      if (filters.priceMin) query.price_per_hour.$gte = filters.priceMin;
-      if (filters.priceMax) query.price_per_hour.$lte = filters.priceMax;
-    }
-
-    const page = pagination.page || 1;
-    const limit = pagination.limit || 10;
+  async getAllPackages(
+    pagination: Pagination
+  ): Promise<{ data: PackageWithBoatInfo[]; total: number; page: number; limit: number }> {
+    const { page, limit } = pagination;
     const skip = (page - 1) * limit;
 
-    const [data, total] = await Promise.all([
-      this.model.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }),
-      this.model.countDocuments(query),
-    ]);
+    const boats = await this.find({
+      "packages.0": { $exists: true },
+      isAvailable: true
+    });
 
-    return { data, total, page, limit };
+    const allPackages: PackageWithBoatInfo[] = [];
+    
+    boats.forEach((boat) => {
+      boat.packages.forEach((pkg) => {
+        allPackages.push({
+          packageId: pkg._id.toString(),
+          packageName: pkg.packageName,
+          packageType: pkg.packageType,
+          description: pkg.description,
+          features: pkg.features,
+          media: pkg.media,
+          boat: {
+            _id: boat._id.toString(),
+            boatName: boat.boatName,
+            companyName: boat.companyName,
+            boatType: boat.boatType,
+            location: boat.location,
+            capacity: boat.capacity,
+            pricePerHour: boat.pricePerHour,
+            amenities: boat.amenities,
+            isAvailable: boat.isAvailable
+          }
+        });
+      });
+    });
+
+    const total = allPackages.length;
+    const paginatedPackages = allPackages.slice(skip, skip + limit);
+
+    return { data: paginatedPackages, total, page, limit };
   }
 }

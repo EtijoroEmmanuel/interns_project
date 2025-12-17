@@ -25,9 +25,15 @@ export class AuthController {
         password,
       });
 
+      const verificationToken = JWTUtil.generateVerificationToken(
+        user._id.toString(),
+        user.email
+      );
+
       res.status(201).json({
         success: true,
         message: otpMessage,
+        verificationToken,
         data: {
           id: user._id,
           phoneNumber: user.phoneNumber,
@@ -80,10 +86,14 @@ export class AuthController {
   static async verifyOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const value = validate(verifyOtpSchema, req.body);
-      const { email, otp } = value;
+      const {email, otp } = value;
 
-      const message = await AuthService.verifyOtp(email, otp);
-      res.status(200).json({ success: true, message });
+      const { message } = await AuthService.verifyOtp(email, otp);
+
+      res.status(200).json({
+        success: true,
+        message,
+      });
     } catch (err) {
       next(err);
     }
@@ -115,17 +125,16 @@ export class AuthController {
 
   static async resetPassword(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = JWTUtil.extractTokenFromHeader(req.headers.authorization);
+      const value = validate(resetPasswordSchema, req.body);
+      const { email, otp, password } = value;
 
-      const { newPassword } = validate(resetPasswordSchema, req.body);
-
-      const message = await AuthService.resetPassword(token, newPassword);
+      const { message } = await AuthService.resetPassword(email, otp, password);
       res.status(200).json({ success: true, message });
     } catch (err) {
       next(err);
     }
   }
-
+  
   static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
@@ -135,7 +144,7 @@ export class AuthController {
       const value = validate(changePasswordSchema, req.body);
       const { currentPassword, newPassword } = value;
 
-      const message = await AuthService.changePassword(
+      const { message } = await AuthService.changePassword(
         req.user._id.toString(),
         currentPassword,
         newPassword

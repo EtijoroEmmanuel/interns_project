@@ -39,19 +39,17 @@ export class AuthService {
     if (existingUser) throw new ConflictException("Email already in use");
 
     const hashedPassword = await CryptoUtil.hash(password);
+    const otp = this.generateOtp();
 
     const user: UserDocument = await User.create({
       ...rest,
       email,
       password: hashedPassword,
       isVerified: false,
+      emailVerificationOtp: this.hashOtp(otp),
+      emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
+      emailVerificationAttempts: 0,
     });
-
-    const otp = this.generateOtp();
-    user.emailVerificationOtp = this.hashOtp(otp);
-    user.emailVerificationOtpExpires = new Date(Date.now() + this.OTP_TTL_MS);
-    user.emailVerificationAttempts = 0;
-    await user.save();
 
     await sendEmail({
       to: user.email,
@@ -86,9 +84,8 @@ export class AuthService {
       );
     }
 
-    return { user };
-  }
-
+  return { user };
+}
   static async verifyOtp(
     email: string,
     otp: string
@@ -96,6 +93,7 @@ export class AuthService {
     const user = await User.findOne({ email }).select(
       "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
     );
+    
     if (!user) throw new NotFoundException("User not found");
     if (user.isVerified) return { message: "Email is already verified" };
 
@@ -103,11 +101,14 @@ export class AuthService {
       throw new BadRequestException("No OTP found. Please request a new one.");
 
     if (user.emailVerificationOtpExpires.getTime() < Date.now()) {
-      await User.updateOne(
+      await User.findOneAndUpdate(
         { _id: user._id },
         {
-          $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-          $set: { emailVerificationAttempts: 0 },
+          $unset: { 
+            emailVerificationOtp: "",
+            emailVerificationOtpExpires: ""
+          },
+          $set: { emailVerificationAttempts: 0 }
         }
       );
       throw new BadRequestException(
@@ -115,13 +116,17 @@ export class AuthService {
       );
     }
 
-    user.emailVerificationAttempts = (user.emailVerificationAttempts || 0) + 1;
-    if (user.emailVerificationAttempts > this.MAX_OTP_ATTEMPTS) {
-      await User.updateOne(
+    const attempts = (user.emailVerificationAttempts || 0) + 1;
+    
+    if (attempts > this.MAX_OTP_ATTEMPTS) {
+      await User.findOneAndUpdate(
         { _id: user._id },
         {
-          $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-          $set: { emailVerificationAttempts: 0 },
+          $unset: { 
+            emailVerificationOtp: "",
+            emailVerificationOtpExpires: ""
+          },
+          $set: { emailVerificationAttempts: 0 }
         }
       );
       throw new BadRequestException(
@@ -131,16 +136,24 @@ export class AuthService {
 
     const hashed = this.hashOtp(otp);
     if (hashed !== user.emailVerificationOtp) {
-      await user.save();
+      await User.findOneAndUpdate(
+        { _id: user._id },
+        { $set: { emailVerificationAttempts: attempts } }
+      );
       throw new BadRequestException("Invalid OTP");
     }
 
-    user.isVerified = true;
-    await User.updateOne(
+    await User.findOneAndUpdate(
       { _id: user._id },
       {
-        $unset: { emailVerificationOtp: "", emailVerificationOtpExpires: "" },
-        $set: { isVerified: true, emailVerificationAttempts: 0 },
+        $set: { 
+          isVerified: true,
+          emailVerificationAttempts: 0
+        },
+        $unset: { 
+          emailVerificationOtp: "",
+          emailVerificationOtpExpires: ""
+        }
       }
     );
 
@@ -155,10 +168,17 @@ export class AuthService {
     if (user.isVerified) return { message: "User is already verified" };
 
     const otp = this.generateOtp();
-    user.emailVerificationOtp = this.hashOtp(otp);
-    user.emailVerificationOtpExpires = new Date(Date.now() + this.OTP_TTL_MS);
-    user.emailVerificationAttempts = 0;
-    await user.save();
+    
+    await User.findOneAndUpdate(
+      { _id: user._id },
+      {
+        $set: {
+          emailVerificationOtp: this.hashOtp(otp),
+          emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
+          emailVerificationAttempts: 0
+        }
+      }
+    );
 
     await sendEmail({
       to: user.email,
@@ -169,49 +189,79 @@ export class AuthService {
     return { message: "Verification OTP resent successfully" };
   }
 
-  static async forgotPassword(
-    email: string
-  ): Promise<{ message: string }> {
-    const user = await User.findOne({ email }).select("+password");
+  static async forgotPassword(email: string): Promise<{ message: string }> {
+    const user = await User.findOne({ email });
     if (!user) throw new NotFoundException("User not found");
 
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    user.passwordResetToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.passwordResetExpires = new Date(Date.now() + this.OTP_TTL_MS);
-
-    await user.save();
-
-    const resetLink = `${this.CLIENT_URL}/reset-password/${resetToken}`;
-    await sendEmail({
-      to: user.email,
-      subject: "Reset Your Boat Cruise Password",
-      html: resetPasswordTemplate(resetLink, user.email),
-    });
-
-    return { message: "Password reset email sent successfully!" };
-  }
-  static async resetPassword(
-    token: string,
-    newPassword: string
-  ): Promise<{ message: string }> {
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
-
-    const user = await User.findOne({
-      passwordResetToken: hashedToken,
-      passwordResetExpires: { $gt: new Date() },
-    });
-    if (!user) throw new BadRequestException("Token is invalid or has expired");
-
-    const hashedPassword = await CryptoUtil.hash(newPassword);
-
-    await User.updateOne(
+    const otp = this.generateOtp();
+    
+    await User.findOneAndUpdate(
       { _id: user._id },
       {
-        $set: { password: hashedPassword },
-        $unset: { passwordResetToken: "", passwordResetExpires: "" },
+        $set: {
+          passwordResetToken: this.hashOtp(otp),
+          passwordResetExpires: new Date(Date.now() + this.OTP_TTL_MS),
+          passwordResetAttempts: 0
+        }
+      }
+    );
+
+    await sendEmail({
+      to: user.email,
+      subject: "Reset Your Password",
+      html: resetPasswordTemplate(otp, user.email),
+    });
+
+    return { message: "Password reset OTP sent to your email!" };
+  }
+
+  static async resetPassword(
+    email: string,
+    otp: string,
+    password: string
+  ): Promise<{ message: string }> {
+    const hashedOtp = this.hashOtp(otp);
+    
+    const user = await User.findOne({
+      email,
+      passwordResetToken: hashedOtp,
+      passwordResetExpires: { $gt: new Date() },
+    }).select("+passwordResetToken +passwordResetExpires +passwordResetAttempts");
+    
+    if (!user) throw new BadRequestException("Invalid or expired OTP");
+
+    const attempts = (user.passwordResetAttempts || 0) + 1;
+    
+    if (attempts > this.MAX_OTP_ATTEMPTS) {
+      await User.findOneAndUpdate(
+        { _id: user._id },
+        {
+          $unset: { 
+            passwordResetToken: "",
+            passwordResetExpires: ""
+          },
+          $set: { passwordResetAttempts: 0 }
+        }
+      );
+      throw new BadRequestException(
+        "Too many attempts. OTP invalidated. Request a new one."
+      );
+    }
+
+    const hashedPassword = await CryptoUtil.hash(password);
+    
+    await User.findOneAndUpdate(
+      { _id: user._id },
+      {
+        $set: {
+          password: hashedPassword,
+          passwordResetAttempts: 0,
+          passwordChangedAt: new Date()
+        },
+        $unset: { 
+          passwordResetToken: "",
+          passwordResetExpires: ""
+        }
       }
     );
 
@@ -230,8 +280,17 @@ export class AuthService {
     if (!isMatch)
       throw new BadRequestException("Current password is incorrect");
 
-    user.password = await CryptoUtil.hash(newPassword);
-    await user.save();
+    const hashedPassword = await CryptoUtil.hash(newPassword);
+    
+    await User.findOneAndUpdate(
+      { _id: user._id },
+      {
+        $set: {
+          password: hashedPassword,
+          passwordChangedAt: new Date()
+        }
+      }
+    );
 
     return { message: "Password changed successfully!" };
   }

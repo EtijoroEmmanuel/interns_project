@@ -50,9 +50,9 @@ export const env: IENVIRONMENT = {
     BREVO_API_KEY: process.env.BREVO_API_KEY!,
   },
   CLOUDINARY:{
-    CLOUD_UPLOAD_PRESET: process.env.CLOUD_UPLOAD_PRESET!,
-    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY!,
-    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
-    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
+    UPLOAD_PRESET: process.env.UPLOAD_PRESET!,
+    API_KEY: process.env.API_KEY!,
+    API_SECRET: process.env.API_SECRET!,
+    CLOUD_NAME: process.env.CLOUD_NAME!,
   }
 };

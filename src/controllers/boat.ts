@@ -1,6 +1,31 @@
 import { Request, Response, NextFunction } from "express";
 import { BoatService } from "../services/boat";
-import { BadRequestException } from "../utils/exception";
+import { BoatFilters, Pagination } from "../types/boatTypes";
+import { validate } from "../utils/validator";
+import {
+  createBoatSchema,
+  createBoatWithPackagesSchema,
+  addMediaSchema,
+  updateBoatSchema,
+  createPackageSchema,
+  updatePackageSchema,
+} from "../validators/boat";
+
+interface BoatQueryParams {
+  companyName?: string;
+  boatType?: string;
+  isAvailable?: string;
+  capacityMin?: string;
+  capacityMax?: string;
+  priceMin?: string;
+  priceMax?: string;
+  boatName?: string;
+}
+
+interface PaginationQueryParams {
+  page?: string;
+  limit?: string;
+}
 
 export class BoatController {
   private boatService: BoatService;
@@ -11,7 +36,19 @@ export class BoatController {
 
   createBoat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const boat = await this.boatService.createBoat(req.body);
+      const hasPackages = req.body.packages && 
+                         Array.isArray(req.body.packages) && 
+                         req.body.packages.length > 0;
+      
+      const validatedData = validate(
+        hasPackages ? createBoatWithPackagesSchema : createBoatSchema,
+        req.body
+      );
+      
+      const { packages, ...boatData } = validatedData;
+    
+      const boat = await this.boatService.createBoat(boatData, packages);
+      
       res.status(201).json({
         success: true,
         data: boat,
@@ -21,241 +58,13 @@ export class BoatController {
     }
   };
 
-  
-  addMedia = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id } = req.params;
-      const { secure_url, public_id, resource_type, width, height, isPrimary } = req.body;
-
-      if (!secure_url || !public_id || !resource_type) {
-        throw new BadRequestException("Missing required fields: secure_url, public_id, resource_type");
-      }
-
-      const mediaType = resource_type === "video" ? "video" : "image";
-
-      const boat = await this.boatService.addMedia(id, [
-        {
-          url: secure_url,
-          publicId: public_id,
-          type: mediaType,
-          isPrimary: isPrimary || false,
-        },
-      ]);
-
-      res.status(200).json({
-        success: true,
-        data: boat,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  updatePrimaryMedia = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
-      const { mediaUrl } = req.body;
-
-      if (!mediaUrl) {
-        throw new BadRequestException("mediaUrl is required");
-      }
-
-      const boat = await this.boatService.updatePrimaryMedia(id, mediaUrl);
-      res.status(200).json({
-        success: true,
-        data: boat,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  deleteMedia = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id, mediaId } = req.params;
-
-      if (!mediaId) {
-        throw new BadRequestException("mediaId is required");
-      }
-
-      const result = await this.boatService.deleteMedia(id, mediaId);
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  updateBoatDetails = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
-
-      const allowedUpdates = [
-        'boatName',
-        'companyName',
-        'description',
-        'location',
-        'capacity',
-        'amenities',
-        'pricePerHour',
-        'status',
-      ];
-
-      const updateKeys = Object.keys(req.body);
-      const isValidOperation = updateKeys.every((key) =>
-        allowedUpdates.includes(key)
-      );
-
-      if (!isValidOperation) {
-        const invalidFields = updateKeys.filter(
-          (key) => !allowedUpdates.includes(key)
-        );
-        throw new BadRequestException(
-          `Invalid fields: ${invalidFields.join(', ')}`
-        );
-      }
-
-      if (updateKeys.length === 0) {
-        throw new BadRequestException('No fields to update');
-      }
-
-      const updates: any = {};
-
-      if (req.body.boatName !== undefined) {
-        if (typeof req.body.boatName !== 'string' || req.body.boatName.trim().length === 0) {
-          throw new BadRequestException('boatName must be a non-empty string');
-        }
-        updates.boatName = req.body.boatName.trim();
-      }
-
-      if (req.body.companyName !== undefined) {
-        if (typeof req.body.companyName !== 'string' || req.body.companyName.trim().length === 0) {
-          throw new BadRequestException('companyName must be a non-empty string');
-        }
-        updates.companyName = req.body.companyName.trim();
-      }
-
-      if (req.body.description !== undefined) {
-        if (typeof req.body.description !== 'string' || req.body.description.trim().length === 0) {
-          throw new BadRequestException('description must be a non-empty string');
-        }
-        updates.description = req.body.description.trim();
-      }
-
-      if (req.body.location !== undefined) {
-        if (typeof req.body.location !== 'string' || req.body.location.trim().length === 0) {
-          throw new BadRequestException('location must be a non-empty string');
-        }
-        updates.location = req.body.location.trim();
-      }
-
-      if (req.body.capacity !== undefined) {
-        if (!Number.isInteger(req.body.capacity) || req.body.capacity < 1) {
-          throw new BadRequestException('capacity must be a positive integer');
-        }
-        updates.capacity = req.body.capacity;
-      }
-      if (req.body.amenities !== undefined) {
-        if (!Array.isArray(req.body.amenities)) {
-          throw new BadRequestException('amenities must be an array');
-        }
-
-        const validAmenities = req.body.amenities.every(
-          (amenity: any) => typeof amenity === 'string'
-        );
-        if (!validAmenities) {
-          throw new BadRequestException('all amenities must be strings');
-        }
-        updates.amenities = req.body.amenities.map((a: string) => a.trim());
-      }
-
-      if (req.body.pricePerHour !== undefined) {
-        const price = Number(req.body.pricePerHour);
-        if (isNaN(price) || price <= 0) {
-          throw new BadRequestException('pricePerHour must be a positive number');
-        }
-        updates.pricePerHour = price;
-      }
-
-      if (req.body.status !== undefined) {
-        if (!['available', 'unavailable'].includes(req.body.status)) {
-          throw new BadRequestException('status must be either "available" or "unavailable"');
-        }
-        updates.status = req.body.status;
-      }
-
-      const boat = await this.boatService.updateBoatDetails(id, updates);
-      res.status(200).json({
-        success: true,
-        data: boat,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  toggleAvailability = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
-      const boat = await this.boatService.toggleAvailability(id);
-      res.status(200).json({
-        success: true,
-        data: boat,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  deleteBoat = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id } = req.params;
-      const result = await this.boatService.deleteBoat(id);
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   getBoats = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const filters = {
-        companyName: req.query.companyName as string,
-        status: req.query.status as "available" | "unavailable",
-        capacityMin: req.query.capacityMin
-          ? Number(req.query.capacityMin)
-          : undefined,
-        capacityMax: req.query.capacityMax
-          ? Number(req.query.capacityMax)
-          : undefined,
-        priceMin: req.query.priceMin ? Number(req.query.priceMin) : undefined,
-        priceMax: req.query.priceMax ? Number(req.query.priceMax) : undefined,
-        boatName: req.query.boatName as string,
-      };
-
-      const pagination = {
-        page: req.query.page ? Number(req.query.page) : 1,
-        limit: req.query.limit ? Number(req.query.limit) : 10,
-      };
+      const filters = this.parseBoatFilters(req.query as BoatQueryParams);
+      const pagination = this.parsePagination(req.query as PaginationQueryParams);
 
       const result = await this.boatService.getBoats(filters, pagination);
+      
       res.status(200).json({
         success: true,
         ...result,
@@ -269,6 +78,7 @@ export class BoatController {
     try {
       const { id } = req.params;
       const boat = await this.boatService.getBoatById(id);
+      
       res.status(200).json({
         success: true,
         data: boat,
@@ -277,4 +87,208 @@ export class BoatController {
       next(error);
     }
   };
+
+  updateBoatDetails = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+      const validatedData = validate(updateBoatSchema, req.body);
+      const boat = await this.boatService.updateBoatDetails(id, validatedData);
+      
+      res.status(200).json({
+        success: true,
+        data: boat,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  toggleBoatAvailability = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+      const boat = await this.boatService.toggleBoatAvailability(id);
+      
+      res.status(200).json({
+        success: true,
+        data: boat,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteBoat = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const result = await this.boatService.deleteBoat(id);
+      
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getAllPackages = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const pagination = this.parsePagination(req.query as PaginationQueryParams);
+      const result = await this.boatService.getAllPackages(pagination);
+      
+      res.status(200).json({
+        success: true,
+        ...result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getAllPackagesForBoat = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
+    try {
+      const { id } = req.params;
+      const packages = await this.boatService.getAllPackagesForBoat(id);
+      
+      res.status(200).json({
+        success: true,
+        data: packages,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getPackageById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, packageId } = req.params;
+      const packageData = await this.boatService.getPackageById(id, packageId);
+      
+      res.status(200).json({
+        success: true,
+        data: packageData,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+
+
+  updatePackage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, packageId } = req.params;
+      const validatedData = validate(updatePackageSchema, req.body);
+      const boat = await this.boatService.updatePackage(
+        id,
+        packageId,
+        validatedData
+      );
+      
+      res.status(200).json({
+        success: true,
+        data: boat,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deletePackage = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, packageId } = req.params;
+      const result = await this.boatService.deletePackage(id, packageId);
+      
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  addMedia = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, packageId } = req.params;
+      const validatedData = validate(addMediaSchema, req.body);
+      const { mediaList } = validatedData;
+
+      const boat = await this.boatService.addMedia(id, mediaList, packageId);
+
+      res.status(200).json({
+        success: true,
+        data: boat,
+        message: packageId 
+          ? "Media added to package successfully" 
+          : "Media added to boat successfully",
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  deleteMedia = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id, packageId, mediaId } = req.params;
+      const result = await this.boatService.deleteMedia(
+        id,
+        mediaId,
+        packageId
+      );
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+ private parseBoatFilters(query: BoatQueryParams): BoatFilters {
+  const {
+    companyName,
+    boatType,
+    isAvailable,
+    capacityMin,
+    capacityMax,
+    priceMin,
+    priceMax,
+    boatName,
+  } = query;
+
+  return {
+    ...(companyName && { companyName }),
+    ...(boatType && { boatType }),
+    ...(isAvailable !== undefined && { 
+      isAvailable: isAvailable === "true" 
+    }),
+    ...(capacityMin && { capacityMin: Number(capacityMin) }),
+    ...(capacityMax && { capacityMax: Number(capacityMax) }),
+    ...(priceMin && { priceMin: Number(priceMin) }),
+    ...(priceMax && { priceMax: Number(priceMax) }),
+    ...(boatName && { boatName }),
+  };
+}
+  private parsePagination(query: PaginationQueryParams): Pagination {
+    const { page, limit } = query;
+    
+    return {
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 10,
+    };
+  }
 }

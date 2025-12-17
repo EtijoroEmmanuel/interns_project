@@ -1,21 +1,39 @@
 import { Router } from "express";
 import { BoatController } from "../controllers/boat";
-import { authenticate, isAdmin } from "../middlewares/auth";
+import { isAdmin } from "../middlewares/auth";
 
 const router = Router();
 const boatController = new BoatController();
 
-router.post("/boats", authenticate, isAdmin, boatController.createBoat);
+/* ---------- ADMIN ROUTES ---------- */
 
-router.post("/boats/:id/media", authenticate, isAdmin, boatController.addMedia);
-router.patch("/boats/:id/media/primary", authenticate, isAdmin, boatController.updatePrimaryMedia);
-router.delete("/boats/:id/media/:mediaId", authenticate, isAdmin, boatController.deleteMedia);
+// Boats (admin)
+router.post("/boats", isAdmin, boatController.createBoat);
+router.patch("/boats/:id", isAdmin, boatController.updateBoatDetails);
+router.patch("/boats/:id/toggle-availability", isAdmin, boatController.toggleBoatAvailability);
+router.delete("/boats/:id", isAdmin, boatController.deleteBoat);
 
-router.patch("/boats/:id", authenticate, isAdmin, boatController.updateBoatDetails);
-router.patch("/boats/:id/toggle-availability", authenticate, isAdmin, boatController.toggleAvailability);
-router.delete("/boats/:id", authenticate, isAdmin, boatController.deleteBoat);
+// Boat media (admin)
+router.post("/boats/:id/media", isAdmin, boatController.addMedia);
+router.delete("/boats/:id/media/:mediaId", isAdmin, boatController.deleteMedia);
 
+// Packages (admin)
+router.patch("/boats/:id/packages/:packageId", isAdmin, boatController.updatePackage);
+router.delete("/boats/:id/packages/:packageId", isAdmin, boatController.deletePackage);
+
+// Package media (admin)
+router.post("/boats/:id/packages/:packageId/media", isAdmin, boatController.addMedia);
+router.delete("/boats/:id/packages/:packageId/media/:mediaId", isAdmin, boatController.deleteMedia);
+
+/* ---------- PUBLIC ROUTES ---------- */
+
+// Boats (public)
 router.get("/boats", boatController.getBoats);
 router.get("/boats/:id", boatController.getBoatById);
+
+// Packages (public)
+router.get("/packages", boatController.getAllPackages);
+router.get("/boats/:id/packages", boatController.getAllPackagesForBoat);
+router.get("/boats/:id/packages/:packageId", boatController.getPackageById);
 
 export default router;

@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
-dotenv.config();
-
 import app from "./app";
 import { connectDB } from "./db/mongo";
 import { logger } from "./utils/logger";
+
+dotenv.config();
 
 const startServer = async () => {
   try {
@@ -17,11 +17,7 @@ const startServer = async () => {
     if (error instanceof Error) {
       logger.error(`Failed to start the server: ${error.message}`);
     } else {
-      logger.error(
-        { error: String(error) },
-        "Failed to start the server: Unknown error",
-        error
-      );
+      logger.error(`Failed to start the server: Unknown error`);
     }
   }
 };

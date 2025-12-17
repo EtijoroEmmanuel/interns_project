@@ -3,22 +3,25 @@
   "version": "1.0.0",
   "description": "Seam-Less Booking",
   "main": "index.js",
+  "overrides": {
+    "tough-e": "npm:tough-cookie@^2.5.0"
+  },
   "scripts": {
+    "dev": "ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "nodemon --watch src --exec ts-node src/index.ts"
+    "start": "node dist/index.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/breetometer/boat-cruise-be.git"
+    "url": "git+https://github.com/EtijoroEmmanuel/interns_project.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/breetometer/boat-cruise-be/issues"
+    "url": "https://github.com/EtijoroEmmanuel/interns_project/issues"
   },
-  "homepage": "https://github.com/breetometer/boat-cruise-be#readme",
+  "homepage": "https://github.com/EtijoroEmmanuel/interns_project#readme",
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.8.0",

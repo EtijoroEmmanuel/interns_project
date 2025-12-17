@@ -1,13 +1,7 @@
 import { CloudinaryUtil } from "../utils/cloudinary";
 import { NotFoundException } from "../utils/exception";
 import { Model, Document, Types } from "mongoose";
-
-interface MediaItem {
-    url: string;
-    publicId: string;
-    type: "image" | "video";
-    isPrimary?: boolean;
-}
+import { MediaItem, MediaItemWithId } from "../types/boatTypes";
 
 interface CloudinaryUploadData {
     secure_url: string;
@@ -18,68 +12,76 @@ interface CloudinaryUploadData {
     isPrimary?: boolean;
 }
 
-
 interface DocumentWithMedia extends Document {
-    media: Types.DocumentArray<MediaItem & { _id: Types.ObjectId }>;
+    media: Types.DocumentArray<MediaItemWithId>;
 }
 
 export class UploadService {
-
     static generateUploadSignature() {
         return CloudinaryUtil.generatePresignedSignature();
     }
 
+    private static async getDocumentOrThrow<T extends DocumentWithMedia>(
+        model: Model<T>,
+        documentId: string
+    ): Promise<T> {
+        const document = await model.findById(documentId);
+        if (!document) {
+            throw new NotFoundException(`${model.modelName} not found`);
+        }
+        return document;
+    }
+
+    private static resetPrimaryMedia(mediaArray: Types.DocumentArray<MediaItemWithId>): void {
+        mediaArray.forEach((item) => {
+            item.isPrimary = false;
+        });
+    }
 
     static async addMediaToDocument<T extends DocumentWithMedia>(
         model: Model<T>,
         documentId: string,
         uploadData: CloudinaryUploadData
     ): Promise<T> {
-        const document = await model.findById(documentId);
-        if (!document) {
-            throw new NotFoundException(`${model.modelName} not found`);
-        }
+        const document = await this.getDocumentOrThrow(model, documentId);
 
         const { secure_url, public_id, resource_type, isPrimary } = uploadData;
-
         const mediaType = resource_type === "video" ? "video" : "image";
 
         if (isPrimary) {
-            document.media.forEach((item: any) => {
-                item.isPrimary = false;
-            });
+            this.resetPrimaryMedia(document.media);
         }
 
-        document.media.push({
+        const newMedia: Partial<MediaItemWithId> = {
             url: secure_url,
             publicId: public_id,
             type: mediaType,
             isPrimary: isPrimary || false,
-        } as any);
+        };
 
+        document.media.push(newMedia as MediaItemWithId);
         await document.save();
         return document;
     }
-
 
     static async addMultipleMediaToDocument<T extends DocumentWithMedia>(
         model: Model<T>,
         documentId: string,
         mediaList: MediaItem[]
     ): Promise<T> {
-        const document = await model.findById(documentId);
-        if (!document) {
-            throw new NotFoundException(`${model.modelName} not found`);
-        }
+        const document = await this.getDocumentOrThrow(model, documentId);
 
         const hasPrimary = mediaList.some((m) => m.isPrimary);
         if (hasPrimary) {
-            document.media.forEach((item: any) => {
-                item.isPrimary = false;
-            });
+            this.resetPrimaryMedia(document.media);
         }
 
-        document.media.push(...(mediaList as any));
+        const mediaToAdd = mediaList.map(media => ({
+            ...media,
+            isPrimary: media.isPrimary || false
+        })) as MediaItemWithId[];
+
+        document.media.push(...mediaToAdd);
         await document.save();
         return document;
     }
@@ -89,19 +91,14 @@ export class UploadService {
         documentId: string,
         mediaId: string
     ): Promise<{ message: string }> {
-        const document = await model.findById(documentId);
-        if (!document) {
-            throw new NotFoundException(`${model.modelName} not found`);
-        }
+        const document = await this.getDocumentOrThrow(model, documentId);
 
         const mediaItem = document.media.id(mediaId);
         if (!mediaItem) {
             throw new NotFoundException("Media not found");
         }
 
-
         await CloudinaryUtil.deleteFile(mediaItem.publicId);
-
 
         document.media.pull(mediaId);
         await document.save();
@@ -122,17 +119,14 @@ export class UploadService {
         documentId: string,
         mediaUrl: string
     ): Promise<T> {
-        const document = await model.findById(documentId);
-        if (!document) {
-            throw new NotFoundException(`${model.modelName} not found`);
-        }
+        const document = await this.getDocumentOrThrow(model, documentId);
 
-        const mediaItem = document.media.find((m: any) => m.url === mediaUrl);
+        const mediaItem = document.media.find((m) => m.url === mediaUrl);
         if (!mediaItem) {
             throw new NotFoundException("Media not found");
         }
 
-        document.media.forEach((m: any) => (m.isPrimary = false));
+        this.resetPrimaryMedia(document.media);
         mediaItem.isPrimary = true;
 
         await document.save();
