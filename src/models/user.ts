@@ -39,20 +39,21 @@ const userSchema = new Schema(
     },
     emailVerificationOtpExpires: {
       type: Date,
-      select: false, 
+      select: false,
     },
     emailVerificationAttempts: {
       type: Number,
       default: 0,
-      select: false, 
-    },
-    passwordResetToken: {
-      type: String,
-      select: false, 
+      select: false,
     },
     passwordResetExpires: {
       type: Date,
-      select: false, 
+      select: false,
+    },
+    passwordResetAttempts: {
+      type: Number,
+      default: 0,
+      select: false,
     },
     passwordResetAttempts: {
       type: Number,

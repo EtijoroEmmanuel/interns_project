@@ -19,6 +19,12 @@ export interface IENVIRONMENT {
     BREVO_SENDER_EMAIL: string;
     BREVO_API_KEY: string;
   };
+  CLOUDINARY: {
+    UPLOAD_PRESET: string;
+    API_KEY: string;
+    API_SECRET: string;
+    CLOUD_NAME: string;
+  };
 }
 
 export interface ExtendedError extends Error {

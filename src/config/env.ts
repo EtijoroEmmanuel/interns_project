@@ -49,4 +49,10 @@ export const env: IENVIRONMENT = {
     BREVO_SENDER_EMAIL: process.env.BREVO_SENDER_EMAIL!,
     BREVO_API_KEY: process.env.BREVO_API_KEY!,
   },
+  CLOUDINARY:{
+    UPLOAD_PRESET: process.env.UPLOAD_PRESET!,
+    API_KEY: process.env.API_KEY!,
+    API_SECRET: process.env.API_SECRET!,
+    CLOUD_NAME: process.env.CLOUD_NAME!,
+  }
 };

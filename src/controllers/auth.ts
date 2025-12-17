@@ -25,9 +25,15 @@ export class AuthController {
         password,
       });
 
+      const verificationToken = JWTUtil.generateVerificationToken(
+        user._id.toString(),
+        user.email
+      );
+
       res.status(201).json({
         success: true,
         message: otpMessage,
+        verificationToken,
         data: {
           id: user._id,
           phoneNumber: user.phoneNumber,
@@ -80,7 +86,7 @@ export class AuthController {
   static async verifyOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const value = validate(verifyOtpSchema, req.body);
-      const { email, otp } = value;
+      const {email, otp } = value;
 
       const { message } = await AuthService.verifyOtp(email, otp);
 

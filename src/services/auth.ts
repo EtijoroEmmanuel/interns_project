@@ -84,9 +84,8 @@ export class AuthService {
       );
     }
 
-    return { user };
-  }
-
+  return { user };
+}
   static async verifyOtp(
     email: string,
     otp: string

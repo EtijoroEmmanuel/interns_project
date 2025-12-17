@@ -61,25 +61,71 @@ export const authenticate = async (
   }
 };
 
-export const isAdmin = (
+export const isAdmin = async (
   req: Request,
-  _res: Response,
+  res: Response,
   next: NextFunction
-): void => {
-  if (!req.user) {
-    return next(new ErrorResponse("User not authenticated", 401));
-  }
+): Promise<void> => {
+  try {
+  
+    const authHeader = req.headers.authorization;
 
-  if (req.user.role !== UserRole.ADMIN) {
+    if (!authHeader) {
+      return next(
+        new ErrorResponse("You are not logged in. Please log in.", 401)
+      );
+    }
+
+    const token = JWTUtil.extractTokenFromHeader(authHeader);
+
+    const decoded = JWTUtil.verifyToken(token);
+
+    if (!decoded.userId) {
+      return next(new ErrorResponse("Malformed authentication token.", 401));
+    }
+
+    const currentUser: UserDocument | null = await User.findById(
+      decoded.userId
+    );
+
+    if (!currentUser) {
+      return next(
+        new ErrorResponse(
+          "The user belonging to this token no longer exists.",
+          401
+        )
+      );
+    }
+
+    if (decoded.iat && currentUser.changedPasswordAfter(decoded.iat)) {
+      return next(
+        new ErrorResponse(
+          "User recently changed password. Please log in again.",
+          401
+        )
+      );
+    }
+
+    req.user = currentUser;
+
+    if (req.user.role !== UserRole.ADMIN) {
+      return next(
+        new ErrorResponse(
+          "You do not have permission to perform this action.",
+          403
+        )
+      );
+    }
+
+    next();
+  } catch (error) {
     return next(
       new ErrorResponse(
-        "You do not have permission to perform this action.",
-        403
+        error instanceof Error ? error.message : "Authentication failed",
+        401
       )
     );
   }
-
-  next();
 };
 
 export const otpLimiter = rateLimit({
