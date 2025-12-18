@@ -161,33 +161,32 @@ export class AuthService {
   }
 
   static async resendOtp(email: string): Promise<{ message: string }> {
-    const user = await User.findOne({ email }).select(
-      "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
-    );
-    if (!user) throw new NotFoundException("User not found");
-    if (user.isVerified) return { message: "User is already verified" };
+  const user = await User.findOne({ email }).select(
+    "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
+  );
+  if (!user) throw new NotFoundException("User not found");
 
-    const otp = this.generateOtp();
-    
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          emailVerificationOtp: this.hashOtp(otp),
-          emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
-          emailVerificationAttempts: 0
-        }
+  const otp = this.generateOtp();
+  
+  await User.findOneAndUpdate(
+    { _id: user._id },
+    {
+      $set: {
+        emailVerificationOtp: this.hashOtp(otp),
+        emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
+        emailVerificationAttempts: 0
       }
-    );
+    }
+  );
 
-    await sendEmail({
-      to: user.email,
-      subject: "Your verification code (resend)",
-      html: verifyOtpTemplate(otp, user.email),
-    });
+  await sendEmail({
+    to: user.email,
+    subject: "Your verification code (resend)",
+    html: verifyOtpTemplate(otp, user.email),
+  });
 
-    return { message: "Verification OTP resent successfully" };
-  }
+  return { message: "Verification OTP resent successfully" };
+}
 
   static async forgotPassword(email: string): Promise<{ message: string }> {
     const user = await User.findOne({ email });
