@@ -19,40 +19,27 @@ const mediaItemSchema = Joi.object({
 });
 
 export const createPackageSchema = Joi.object({
-  packageName: Joi.string().trim().min(1).required().messages({
-    "string.empty": "packageName is required",
-    "any.required": "packageName is required",
-  }),
-  packageType: Joi.string().trim().min(1).required().messages({
-    "string.empty": "packageType is required",
-    "any.required": "packageType is required",
+  title: Joi.string().trim().min(1).required().messages({
+    "string.empty": "title is required",
+    "any.required": "title is required",
   }),
   description: Joi.string().trim().min(1).required().messages({
     "string.empty": "description is required",
     "any.required": "description is required",
   }),
-  features: Joi.array().items(Joi.string().trim()).default([]),
   media: Joi.array().items(mediaItemSchema).default([]),
-  date: Joi.string().optional(),
 });
 
 export const updatePackageSchema = Joi.object({
-  packageName: Joi.string().trim().min(1).messages({
-    "string.empty": "packageName must be a non-empty string",
-  }),
-  packageType: Joi.string().trim().min(1).messages({
-    "string.empty": "packageType must be a non-empty string",
+  title: Joi.string().trim().min(1).messages({
+    "string.empty": "title must be a non-empty string",
   }),
   description: Joi.string().trim().min(1).messages({
     "string.empty": "description must be a non-empty string",
   }),
-  features: Joi.array().items(Joi.string().trim()).messages({
-    "array.base": "features must be an array",
-  }),
   media: Joi.array().items(mediaItemSchema).messages({
     "array.base": "media must be an array",
   }),
-  date: Joi.string().optional(),
 })
   .min(1)
   .messages({
@@ -100,18 +87,6 @@ export const createBoatSchema = Joi.object({
   }),
   isAvailable: Joi.boolean().default(true),
   media: Joi.array().items(mediaItemSchema).default([]),
-  date: Joi.string().optional(),
-  // Make packages optional so the same schema can handle both cases
-  packages: Joi.array().items(createPackageSchema).optional(),
-});
-
-// You can now remove createBoatWithPackagesSchema entirely
-// Or keep it as an alias if you want:
-export const createBoatWithPackagesSchema = createBoatSchema.keys({
-  packages: Joi.array().items(createPackageSchema).min(1).required().messages({
-    "array.min": "At least one package is required",
-    "any.required": "packages are required",
-  }),
 });
 
 export const updateBoatSchema = Joi.object({

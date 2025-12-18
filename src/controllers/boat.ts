@@ -4,11 +4,8 @@ import { BoatFilters, Pagination } from "../types/boatTypes";
 import { validate } from "../utils/validator";
 import {
   createBoatSchema,
-  createBoatWithPackagesSchema,
   addMediaSchema,
   updateBoatSchema,
-  createPackageSchema,
-  updatePackageSchema,
 } from "../validators/boat";
 
 interface BoatQueryParams {
@@ -36,18 +33,8 @@ export class BoatController {
 
   createBoat = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const hasPackages = req.body.packages && 
-                         Array.isArray(req.body.packages) && 
-                         req.body.packages.length > 0;
-      
-      const validatedData = validate(
-        hasPackages ? createBoatWithPackagesSchema : createBoatSchema,
-        req.body
-      );
-      
-      const { packages, ...boatData } = validatedData;
-    
-      const boat = await this.boatService.createBoat(boatData, packages);
+      const validatedData = validate(createBoatSchema, req.body);
+      const boat = await this.boatService.createBoat(validatedData);
       
       res.status(201).json({
         success: true,
@@ -139,101 +126,18 @@ export class BoatController {
     }
   };
 
-  getAllPackages = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const pagination = this.parsePagination(req.query as PaginationQueryParams);
-      const result = await this.boatService.getAllPackages(pagination);
-      
-      res.status(200).json({
-        success: true,
-        ...result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  getAllPackagesForBoat = async (
-    req: Request,
-    res: Response,
-    next: NextFunction
-  ) => {
-    try {
-      const { id } = req.params;
-      const packages = await this.boatService.getAllPackagesForBoat(id);
-      
-      res.status(200).json({
-        success: true,
-        data: packages,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  getPackageById = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id, packageId } = req.params;
-      const packageData = await this.boatService.getPackageById(id, packageId);
-      
-      res.status(200).json({
-        success: true,
-        data: packageData,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-
-
-  updatePackage = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id, packageId } = req.params;
-      const validatedData = validate(updatePackageSchema, req.body);
-      const boat = await this.boatService.updatePackage(
-        id,
-        packageId,
-        validatedData
-      );
-      
-      res.status(200).json({
-        success: true,
-        data: boat,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  deletePackage = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id, packageId } = req.params;
-      const result = await this.boatService.deletePackage(id, packageId);
-      
-      res.status(200).json({
-        success: true,
-        message: result.message,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
   addMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id, packageId } = req.params;
+      const { id } = req.params;
       const validatedData = validate(addMediaSchema, req.body);
       const { mediaList } = validatedData;
 
-      const boat = await this.boatService.addMedia(id, mediaList, packageId);
+      const boat = await this.boatService.addMedia(id, mediaList);
 
       res.status(200).json({
         success: true,
         data: boat,
-        message: packageId 
-          ? "Media added to package successfully" 
-          : "Media added to boat successfully",
+        message: "Media added to boat successfully",
       });
     } catch (error) {
       next(error);
@@ -242,12 +146,8 @@ export class BoatController {
 
   deleteMedia = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { id, packageId, mediaId } = req.params;
-      const result = await this.boatService.deleteMedia(
-        id,
-        mediaId,
-        packageId
-      );
+      const { id, mediaId } = req.params;
+      const result = await this.boatService.deleteMedia(id, mediaId);
 
       res.status(200).json({
         success: true,
@@ -258,31 +158,32 @@ export class BoatController {
     }
   };
 
- private parseBoatFilters(query: BoatQueryParams): BoatFilters {
-  const {
-    companyName,
-    boatType,
-    isAvailable,
-    capacityMin,
-    capacityMax,
-    priceMin,
-    priceMax,
-    boatName,
-  } = query;
+  private parseBoatFilters(query: BoatQueryParams): BoatFilters {
+    const {
+      companyName,
+      boatType,
+      isAvailable,
+      capacityMin,
+      capacityMax,
+      priceMin,
+      priceMax,
+      boatName,
+    } = query;
 
-  return {
-    ...(companyName && { companyName }),
-    ...(boatType && { boatType }),
-    ...(isAvailable !== undefined && { 
-      isAvailable: isAvailable === "true" 
-    }),
-    ...(capacityMin && { capacityMin: Number(capacityMin) }),
-    ...(capacityMax && { capacityMax: Number(capacityMax) }),
-    ...(priceMin && { priceMin: Number(priceMin) }),
-    ...(priceMax && { priceMax: Number(priceMax) }),
-    ...(boatName && { boatName }),
-  };
-}
+    return {
+      ...(companyName && { companyName }),
+      ...(boatType && { boatType }),
+      ...(isAvailable !== undefined && { 
+        isAvailable: isAvailable === "true" 
+      }),
+      ...(capacityMin && { capacityMin: Number(capacityMin) }),
+      ...(capacityMax && { capacityMax: Number(capacityMax) }),
+      ...(priceMin && { priceMin: Number(priceMin) }),
+      ...(priceMax && { priceMax: Number(priceMax) }),
+      ...(boatName && { boatName }),
+    };
+  }
+
   private parsePagination(query: PaginationQueryParams): Pagination {
     const { page, limit } = query;
     

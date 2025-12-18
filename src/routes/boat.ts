@@ -17,23 +17,10 @@ router.delete("/boats/:id", isAdmin, boatController.deleteBoat);
 router.post("/boats/:id/media", isAdmin, boatController.addMedia);
 router.delete("/boats/:id/media/:mediaId", isAdmin, boatController.deleteMedia);
 
-// Packages (admin)
-router.patch("/boats/:id/packages/:packageId", isAdmin, boatController.updatePackage);
-router.delete("/boats/:id/packages/:packageId", isAdmin, boatController.deletePackage);
-
-// Package media (admin)
-router.post("/boats/:id/packages/:packageId/media", isAdmin, boatController.addMedia);
-router.delete("/boats/:id/packages/:packageId/media/:mediaId", isAdmin, boatController.deleteMedia);
-
 /* ---------- PUBLIC ROUTES ---------- */
 
 // Boats (public)
 router.get("/boats", boatController.getBoats);
 router.get("/boats/:id", boatController.getBoatById);
-
-// Packages (public)
-router.get("/packages", boatController.getAllPackages);
-router.get("/boats/:id/packages", boatController.getAllPackagesForBoat);
-router.get("/boats/:id/packages/:packageId", boatController.getPackageById);
 
 export default router;

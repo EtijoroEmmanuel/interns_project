@@ -29,34 +29,6 @@ const mediaSchema = new Schema({
   },
 });
 
-const boatPackageSchema = new Schema({
-  packageName: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  packageType: {
-    type: String,
-    required: true,
-    index: true,
-  },
-  description: {
-    type: String,
-    required: true,
-  },
-  features: [
-    {
-      type: String,
-      trim: true,
-    },
-  ],
-  media: {
-    type: [mediaSchema],
-    default: [],
-  },
-
-});
-
 const boatSchema = new Schema(
   {
     boatName: {
@@ -110,10 +82,6 @@ const boatSchema = new Schema(
       type: [mediaSchema],
       default: [],
     },
-    packages: {
-      type: [boatPackageSchema],
-      default: [],
-    },
   },
   {
     timestamps: true,
@@ -123,7 +91,6 @@ const boatSchema = new Schema(
 );
 
 export type Media = InferSchemaType<typeof mediaSchema>;
-export type BoatPackage = InferSchemaType<typeof boatPackageSchema>;
 export type Boat = InferSchemaType<typeof boatSchema> & Document;
 
 export const BoatModel = model<Boat>("Boat", boatSchema);
