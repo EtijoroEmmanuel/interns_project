@@ -1,10 +1,11 @@
-import mongoose, { Schema } from "mongoose";
+import mongoose, { Schema, Types } from "mongoose";
 
 export const BOOKING_STATUS = {
     PENDING: "PENDING",
     CONFIRMED: "CONFIRMED",
     CANCELLED: "CANCELLED",
     COMPLETED: "COMPLETED",
+    ABANDONED: "ABANDONED",
 } as const;
 
 const bookingSchema = new Schema(
@@ -29,35 +30,6 @@ const bookingSchema = new Schema(
         endDate: {
             type: Date,
             required: true,
-        },
-
-        duration: {
-            type: Number,
-            required: true,
-        },
-
-        time: {
-            type: String,
-            required: true,
-        },
-
-        fullName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-
-        email: {
-            type: String,
-            required: true,
-            lowercase: true,
-            trim: true,
-        },
-
-        phoneNumber: {
-            type: String,
-            required: true,
-            trim: true,
         },
 
         numberOfGuest: {
@@ -85,6 +57,7 @@ const bookingSchema = new Schema(
             type: String,
             enum: Object.values(BOOKING_STATUS),
             default: BOOKING_STATUS.PENDING,
+            index: true,
         },
 
         paymentReference: {
@@ -97,6 +70,16 @@ const bookingSchema = new Schema(
 );
 
 export type Booking = mongoose.InferSchemaType<typeof bookingSchema>;
+
+export interface CreateBookingInput {
+    userId: string | Types.ObjectId;
+    boatId: string | Types.ObjectId;
+    startDate: Date;
+    endDate: Date;
+    numberOfGuest: number;
+    occasion?: string;
+    specialRequest?: string;
+}
 
 export const BookingModel = mongoose.model<Booking>(
     "Booking",

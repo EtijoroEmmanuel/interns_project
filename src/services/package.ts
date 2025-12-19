@@ -3,11 +3,8 @@ import { UploadService } from "./upload";
 import { CloudinaryUtil } from "../utils/cloudinary";
 import { NotFoundException } from "../utils/exception";
 import { Package, PackageModel } from "../models/package";
-import { 
-  Pagination, 
-  MediaItem, 
-  CreatePackageInput
-} from "../types/boatTypes";
+import { MediaItem } from "../types/boatTypes";
+import { IPagination, PaginatedResult } from "../utils/pagination";
 
 export class PackageService {
   private packageRepository: PackageRepository;
@@ -16,16 +13,11 @@ export class PackageService {
     this.packageRepository = new PackageRepository();
   }
 
-  async createPackage(data: CreatePackageInput): Promise<Package> {
-    return this.packageRepository.create(data as Partial<Package>);
+  async createPackage(data: Partial<Package>): Promise<Package> {
+    return this.packageRepository.create(data);
   }
 
-  async getAllPackages(pagination: Pagination): Promise<{ 
-    data: Package[]; 
-    total: number; 
-    page: number; 
-    limit: number 
-  }> {
+  async getAllPackages(pagination: IPagination): Promise<PaginatedResult<Package>> {
     return this.packageRepository.getAllPackages(pagination);
   }
 

@@ -3,6 +3,7 @@ import { BookingService } from "../services/booking";
 import { validate } from "../utils/validator";
 import { createBookingSchema } from "../validators/booking";
 import { Types } from "mongoose";
+import { getPaginationParams } from "../utils/pagination";
 
 export class BookingController {
   private bookingService: BookingService;
@@ -17,31 +18,27 @@ export class BookingController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const userId = req.user?._id as Types.ObjectId;
-      const { boatId } = req.params;
+      if (!req.user) {
+        throw new Error("User not authenticated");
+      }
+
+      const userId: string | Types.ObjectId = req.user._id;
 
       const value = validate(createBookingSchema, req.body);
       const {
+        boatId,
         startDate,
-        duration,
-        time,
-        fullName,
-        email,
-        phoneNumber,
+        endDate,
         numberOfGuest,
         occasion,
         specialRequest,
       } = value;
 
       const booking = await this.bookingService.createBooking({
-        userId: userId.toString(),
-        boatId,
+        userId,
+        boatId: new Types.ObjectId(boatId),
         startDate: new Date(startDate),
-        duration,
-        time,
-        fullName,
-        email,
-        phoneNumber,
+        endDate: new Date(endDate),
         numberOfGuest,
         occasion,
         specialRequest,
@@ -63,16 +60,27 @@ export class BookingController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const userId = req.user?._id as Types.ObjectId;
+      if (!req.user) {
+        throw new Error("User not authenticated");
+      }
 
-      const bookings = await this.bookingService.getUserBookings(
-        userId.toString()
-      );
+      const userId: string | Types.ObjectId = req.user._id;
+      
+      // Use reusable pagination utility
+      const pagination = getPaginationParams(req.query);
+
+      const bookings = await this.bookingService.getUserBookings(userId, pagination);
 
       res.status(200).json({
         success: true,
         message: "Bookings retrieved successfully",
-        data: bookings,
+        data: bookings.data,
+        pagination: {
+          page: bookings.page,
+          limit: bookings.limit,
+          total: bookings.total,
+          totalPages: Math.ceil(bookings.total / bookings.limit),
+        },
       });
     } catch (error) {
       next(error);
@@ -85,12 +93,16 @@ export class BookingController {
     next: NextFunction
   ): Promise<void> => {
     try {
+      if (!req.user) {
+        throw new Error("User not authenticated");
+      }
+
       const { id } = req.params;
-      const userId = req.user?._id as Types.ObjectId;
+      const userId: string | Types.ObjectId = req.user._id;
 
       const booking = await this.bookingService.getBookingById(
-        id,
-        userId.toString()
+        new Types.ObjectId(id),
+        userId
       );
 
       res.status(200).json({
@@ -109,18 +121,28 @@ export class BookingController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const { id } = req.params;
-      const userId = req.user?._id as Types.ObjectId;
+      if (!req.user) {
+        throw new Error("User not authenticated");
+      }
 
-      const booking = await this.bookingService.cancelBooking(
-        id,
-        userId.toString()
+      const { id } = req.params;
+      const userId: string | Types.ObjectId = req.user._id;
+
+      const result = await this.bookingService.cancelBooking(
+        new Types.ObjectId(id),
+        userId
       );
 
       res.status(200).json({
         success: true,
         message: "Booking cancelled successfully",
-        data: booking,
+        data: {
+          booking: result.booking,
+          refund: {
+            amount: result.refundAmount,
+            percentage: result.refundPercentage,
+          },
+        },
       });
     } catch (error) {
       next(error);
@@ -133,12 +155,20 @@ export class BookingController {
     next: NextFunction
   ): Promise<void> => {
     try {
-      const bookings = await this.bookingService.getAllBookings();
+      const pagination = getPaginationParams(req.query);
+
+      const bookings = await this.bookingService.getAllBookings(pagination);
 
       res.status(200).json({
         success: true,
         message: "All bookings retrieved successfully",
-        data: bookings,
+        data: bookings.data,
+        pagination: {
+          page: bookings.page,
+          limit: bookings.limit,
+          total: bookings.total,
+          totalPages: Math.ceil(bookings.total / bookings.limit),
+        },
       });
     } catch (error) {
       next(error);

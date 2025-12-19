@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { PackageService } from "../services/package";
-import { Pagination } from "../types/boatTypes";
+import { IPagination } from "../utils/pagination";
 import { validate } from "../utils/validator";
 import {
   createPackageSchema,
@@ -9,7 +9,7 @@ import {
 
 interface PaginationQueryParams {
   page?: string;
-  limit?: string;
+  size?: string;
 }
 
 export class PackageController {
@@ -93,12 +93,12 @@ export class PackageController {
     }
   };
 
-  private parsePagination(query: PaginationQueryParams): Pagination {
-    const { page, limit } = query;
+  private parsePagination(query: PaginationQueryParams): IPagination {
+    const { page, size } = query;
     
     return {
       page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
+      size: size ? Number(size) : 10,
     };
   }
 }

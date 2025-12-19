@@ -5,11 +5,11 @@ import { NotFoundException } from "../utils/exception";
 import { Boat, BoatModel } from "../models/boat";
 import { 
   BoatFilters, 
-  Pagination, 
-  MediaItem, 
+  MediaItem,  
   CreateBoatInput,
   MediaItemWithId
 } from "../types/boatTypes";
+import { IPagination, PaginatedResult } from "../utils/pagination";
 
 export class BoatService {
   private boatRepository: BoatRepository;
@@ -55,8 +55,8 @@ export class BoatService {
 
   async getBoats(
     filters: BoatFilters,
-    pagination: Pagination
-  ): Promise<{ data: Boat[]; total: number; page: number; limit: number }> {
+    pagination: IPagination
+  ): Promise<PaginatedResult<Boat>> {
     return this.boatRepository.getBoatsWithFilters(filters, pagination);
   }
 

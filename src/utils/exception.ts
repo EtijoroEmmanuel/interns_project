@@ -18,15 +18,21 @@ export class ForbiddenException extends ErrorResponse {
   }
 }
 
+export class NotFoundException extends ErrorResponse {
+  constructor(message = "Not Found") {
+    super(message, 404);
+  }
+}
+
 export class ConflictException extends ErrorResponse {
   constructor(message = "Conflict") {
     super(message, 409);
   }
 }
 
-export class NotFoundException extends ErrorResponse {
-  constructor(message = "Not Found") {
-    super(message, 404);
+export class UnprocessableEntityException extends ErrorResponse {
+  constructor(message = "Unprocessable Entity") {
+    super(message, 422);
   }
 }
 

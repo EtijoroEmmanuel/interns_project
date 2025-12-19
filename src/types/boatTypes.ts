@@ -1,5 +1,4 @@
 import { Types } from "mongoose";
-import { BoatPackage } from "../models/boat";
 
 export interface BoatFilters {
   companyName?: string;
@@ -10,11 +9,6 @@ export interface BoatFilters {
   priceMin?: number;
   priceMax?: number;
   boatName?: string;
-}
-
-export interface Pagination {
-  page: number;
-  limit: number;
 }
 
 export interface MediaItem {
@@ -37,34 +31,4 @@ export interface CreateBoatInput {
   media?: MediaItem[];
 }
 
-export interface CreatePackageInput {
-  packageName: string;
-  packageType: string;
-  description: string;
-  features?: string[];
-  media?: MediaItem[];
-}
-
-export interface PackageWithBoatInfo {
-  packageId: string;
-  packageName: string;
-  packageType: string;
-  description: string;
-  features?: string[];
-  media: MediaItem[];
-  date?: Date;
-  boat: {
-    _id: string;
-    boatName: string;
-    companyName: string;
-    boatType: string;
-    location: string;
-    capacity: number;
-    pricePerHour: number;
-    amenities?: string[];
-    isAvailable: boolean;
-  };
-}
-
 export type MediaItemWithId = MediaItem & { _id: Types.ObjectId };
-export type PackageWithId = BoatPackage & { _id: Types.ObjectId };

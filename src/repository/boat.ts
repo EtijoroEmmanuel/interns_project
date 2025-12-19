@@ -1,7 +1,8 @@
 import { BaseRepository } from "./baseRepository";
 import { BoatModel, Boat } from "../models/boat";
-import { BoatFilters, Pagination } from "../types/boatTypes";
+import { BoatFilters } from "../types/boatTypes";
 import { FilterQuery } from "mongoose";
+import { paginate, IPagination, PaginatedResult } from "../utils/pagination";
 
 interface BoatQueryFilter extends FilterQuery<Boat> {
   companyName?: string;
@@ -25,8 +26,8 @@ export class BoatRepository extends BaseRepository<Boat> {
 
   async getBoatsWithFilters(
     filters: BoatFilters,
-    pagination: Pagination
-  ): Promise<{ data: Boat[]; total: number; page: number; limit: number }> {
+    pagination: IPagination
+  ): Promise<PaginatedResult<Boat>> {
     const query: BoatQueryFilter = {
       ...(filters.companyName && filters.companyName !== "allCompanies" && { 
         companyName: filters.companyName 
@@ -54,13 +55,6 @@ export class BoatRepository extends BaseRepository<Boat> {
       }),
     };
 
-    const skip = (pagination.page - 1) * pagination.limit;
-
-    const [data, total] = await Promise.all([
-      this.model.find(query).skip(skip).limit(pagination.limit).sort({ createdAt: -1 }),
-      this.model.countDocuments(query),
-    ]);
-
-    return { data, total, page: pagination.page, limit: pagination.limit };
+    return await paginate(this.model, query, pagination);
   }
 }

@@ -12,8 +12,8 @@ router.get("/admin/bookings/:id", isAdmin, bookingController.getBookingById);
 
 /* ---------- USER ROUTES (AUTHENTICATED) ---------- */
 
-router.post("/boats/:boatId/bookings", authenticate, bookingController.createBooking);
-router.get("/bookings/me", authenticate, bookingController.getUserBookings);
+router.post("/bookings/create", authenticate, bookingController.createBooking);
+router.get("/bookings", authenticate, bookingController.getUserBookings);
 router.get("/bookings/:id", authenticate, bookingController.getBookingById);
 router.patch("/bookings/:id/cancel", authenticate, bookingController.cancelBooking);
 

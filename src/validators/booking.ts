@@ -1,37 +1,22 @@
 import Joi from "joi";
 
 export const createBookingSchema = Joi.object({
+  boatId: Joi.string().required().messages({
+    "string.empty": "Boat ID is required",
+    "any.required": "Boat ID is required",
+  }),
+
   startDate: Joi.date().iso().required().messages({
-    "date.base": "Invalid date format",
+    "date.base": "Invalid start date format",
     "date.format": "Start date must be in ISO format",
     "any.required": "Start date is required",
   }),
 
-  duration: Joi.number().positive().required().messages({
-    "number.base": "Duration must be a number",
-    "number.positive": "Duration must be a positive number",
-    "any.required": "Duration is required",
-  }),
-
-  time: Joi.string().required().messages({
-    "string.empty": "Time is required",
-    "any.required": "Time is required",
-  }),
-
-  fullName: Joi.string().trim().required().messages({
-    "string.empty": "Full name is required",
-    "any.required": "Full name is required",
-  }),
-
-  email: Joi.string().email().lowercase().trim().required().messages({
-    "string.email": "Please provide a valid email address",
-    "string.empty": "Email is required",
-    "any.required": "Email is required",
-  }),
-
-  phoneNumber: Joi.string().trim().required().messages({
-    "string.empty": "Phone number is required",
-    "any.required": "Phone number is required",
+  endDate: Joi.date().iso().greater(Joi.ref("startDate")).required().messages({
+    "date.base": "Invalid end date format",
+    "date.format": "End date must be in ISO format",
+    "date.greater": "End date must be after start date",
+    "any.required": "End date is required",
   }),
 
   numberOfGuest: Joi.number().integer().positive().required().messages({
@@ -41,7 +26,11 @@ export const createBookingSchema = Joi.object({
     "any.required": "Number of guests is required",
   }),
 
-  occasion: Joi.string().trim().optional().allow(""),
+  occasion: Joi.string().trim().optional().allow("").messages({
+    "string.base": "Occasion must be a string",
+  }),
 
-  specialRequest: Joi.string().trim().optional().allow(""),
+  specialRequest: Joi.string().trim().optional().allow("").messages({
+    "string.base": "Special request must be a string",
+  }),
 });
