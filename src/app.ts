@@ -8,7 +8,8 @@ import authRoutes from "./routes/auth";
 import rateLimit from "express-rate-limit";
 import uploadRoutes from "./routes/upload";
 import boatRoutes from "./routes/boat";
-import packageRoutes from "./routes/package"
+import packageRoutes from "./routes/package";
+import bookingRoutes from "./routes/booking";
 
 dotenv.config();
 const app = express();
@@ -35,6 +36,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", uploadRoutes);
 app.use("/api", boatRoutes);
 app.use("/api", packageRoutes);
+app.use("/api", bookingRoutes);
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).json({ success: true, message: `Welcome!` });

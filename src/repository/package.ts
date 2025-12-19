@@ -1,6 +1,6 @@
 import { BaseRepository } from "./baseRepository";
 import { PackageModel, Package } from "../models/package";
-import { Pagination } from "../types/boatTypes";
+import { paginate, IPagination, PaginatedResult } from "../utils/pagination";
 
 export class PackageRepository extends BaseRepository<Package> {
   constructor() {
@@ -8,16 +8,12 @@ export class PackageRepository extends BaseRepository<Package> {
   }
 
   async getAllPackages(
-    pagination: Pagination
-  ): Promise<{ data: Package[]; total: number; page: number; limit: number }> {
-    const { page, limit } = pagination;
-    const skip = (page - 1) * limit;
-
-    const [data, total] = await Promise.all([
-      this.model.find().skip(skip).limit(limit).sort({ createdAt: -1 }),
-      this.model.countDocuments(),
-    ]);
-
-    return { data, total, page, limit };
+    pagination: IPagination
+  ): Promise<PaginatedResult<Package>> {
+    return await paginate(
+      this.model,
+      {},
+      pagination
+    );
   }
 }

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { BoatService } from "../services/boat";
-import { BoatFilters, Pagination } from "../types/boatTypes";
+import { BoatFilters } from "../types/boatTypes";
+import { getPaginationParams } from "../utils/pagination";
 import { validate } from "../utils/validator";
 import {
   createBoatSchema,
@@ -17,11 +18,6 @@ interface BoatQueryParams {
   priceMin?: string;
   priceMax?: string;
   boatName?: string;
-}
-
-interface PaginationQueryParams {
-  page?: string;
-  limit?: string;
 }
 
 export class BoatController {
@@ -48,7 +44,8 @@ export class BoatController {
   getBoats = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const filters = this.parseBoatFilters(req.query as BoatQueryParams);
-      const pagination = this.parsePagination(req.query as PaginationQueryParams);
+      // Use the reusable pagination utility
+      const pagination = getPaginationParams(req.query);
 
       const result = await this.boatService.getBoats(filters, pagination);
       
@@ -181,15 +178,6 @@ export class BoatController {
       ...(priceMin && { priceMin: Number(priceMin) }),
       ...(priceMax && { priceMax: Number(priceMax) }),
       ...(boatName && { boatName }),
-    };
-  }
-
-  private parsePagination(query: PaginationQueryParams): Pagination {
-    const { page, limit } = query;
-    
-    return {
-      page: page ? Number(page) : 1,
-      limit: limit ? Number(limit) : 10,
     };
   }
 }
