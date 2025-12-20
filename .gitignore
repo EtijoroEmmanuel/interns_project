@@ -6,7 +6,6 @@ dist/
 *.log
 
 
-.README
-.vercel
+
 .README
 .env*.local

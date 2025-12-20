@@ -1,5 +1,5 @@
 import cron, { ScheduledTask } from "node-cron";
-import { BookingModel, BOOKING_STATUS } from "../models/booking";
+import { BookingModel, BOOKING_STATUS, PAYMENT_STATUS } from "../models/booking";
 import { sendEmail } from "../utils/email";
 import { 
   bookingCompletedTemplate, 
@@ -9,11 +9,12 @@ import {
 import { logger } from "../utils/logger";
 
 export class BookingJobs {
-  private static scheduleAbandoned = "*/15 * * * *";
-  private static scheduleCompleted = "0 * * * *";
+  private static scheduleAbandoned = "*/15 * * * *"; // Every 15 minutes
+  private static scheduleCompleted = "0 * * * *"; // Every hour
   private static abandonedTask: ScheduledTask | null = null;
   private static completedTask: ScheduledTask | null = null;
 
+  
   static async runCompletedBookings(): Promise<void> {
     try {
       const now = new Date();
@@ -21,6 +22,7 @@ export class BookingJobs {
       const result = await BookingModel.updateMany(
         {
           status: BOOKING_STATUS.CONFIRMED,
+          paymentStatus: PAYMENT_STATUS.SUCCESSFUL,
           endDate: { $lte: now },
         },
         { $set: { status: BOOKING_STATUS.COMPLETED } }
@@ -33,7 +35,7 @@ export class BookingJobs {
         endDate: { $lte: now },
         updatedAt: { $gte: new Date(Date.now() - 10000) }
       })
-        .populate("user", "_id email fullName")
+        .populate("user", "_id email")
         .populate("boat", "_id boatName");
 
       let emailsSent = 0;
@@ -72,27 +74,29 @@ export class BookingJobs {
     }
   }
 
+ 
   static async runAbandonedBookings(): Promise<void> {
     try {
-      const oneHourAgo = new Date();
-      oneHourAgo.setHours(oneHourAgo.getHours() - 1);
+      const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
 
       const result = await BookingModel.updateMany(
         {
           status: BOOKING_STATUS.PENDING,
-          createdAt: { $lte: oneHourAgo },
+          paymentStatus: PAYMENT_STATUS.PENDING, 
+          createdAt: { $lte: fifteenMinutesAgo },
         },
         { $set: { status: BOOKING_STATUS.ABANDONED } }
       );
 
       if (result.modifiedCount === 0) return;
 
+  
       const abandonedBookings = await BookingModel.find({
         status: BOOKING_STATUS.ABANDONED,
-        createdAt: { $lte: oneHourAgo },
+        createdAt: { $lte: fifteenMinutesAgo },
         updatedAt: { $gte: new Date(Date.now() - 10000) }
       })
-        .populate("user", "_id email fullName")
+        .populate("user", "_id email")
         .populate("boat", "_id boatName");
 
       let emailsSent = 0;
@@ -111,7 +115,7 @@ export class BookingJobs {
         try {
           await sendEmail({
             to: populatedBooking.user.email,
-            subject: "Your Booking Has Been Abandoned",
+            subject: "Your Booking Payment Expired",
             html: bookingAbandonedTemplate(populatedBooking),
           });
           emailsSent++;
@@ -130,6 +134,7 @@ export class BookingJobs {
       logger.error({ err: error }, "[BookingJobs] Error abandoning bookings");
     }
   }
+
 
   static start(): { stop: () => void } {
     logger.info("[BookingJobs] Starting all booking jobs...");
@@ -154,6 +159,8 @@ export class BookingJobs {
         logger.error({ err }, "[BookingJobs] Error in scheduled completed run")
       );
     });
+
+    logger.info("[BookingJobs] All booking jobs started successfully");
 
     return {
       stop: () => {

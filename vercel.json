@@ -10,6 +10,14 @@
     }
   ],
   "routes": [
-    { "src": "/(.*)", "dest": "/src/index.ts" }
+    {
+      "src": "/api/webhooks/paystack",
+      "dest": "/src/index.ts",
+      "methods": ["POST"]
+    },
+    { 
+      "src": "/(.*)", 
+      "dest": "/src/index.ts" 
+    }
   ]
 }

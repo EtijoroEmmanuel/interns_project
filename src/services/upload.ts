@@ -1,5 +1,5 @@
 import { CloudinaryUtil } from "../utils/cloudinary";
-import { NotFoundException } from "../utils/exception";
+import { NotFoundException, BadRequestException } from "../utils/exception";
 import { Model, Document, Types } from "mongoose";
 import { MediaItem, MediaItemWithId } from "../types/boatTypes";
 
@@ -17,6 +17,8 @@ interface DocumentWithMedia extends Document {
 }
 
 export class UploadService {
+    private static readonly MAX_MEDIA_UPLOADS = 5;
+
     static generateUploadSignature() {
         return CloudinaryUtil.generatePresignedSignature();
     }
@@ -69,9 +71,32 @@ export class UploadService {
         documentId: string,
         mediaList: MediaItem[]
     ): Promise<T> {
+        if (!Array.isArray(mediaList) || mediaList.length === 0) {
+            throw new BadRequestException("Media list must be a non-empty array");
+        }
+
+        if (mediaList.length > this.MAX_MEDIA_UPLOADS) {
+            throw new BadRequestException(
+                `Cannot upload more than ${this.MAX_MEDIA_UPLOADS} files at once`
+            );
+        }
+
+        for (const media of mediaList) {
+            if (!media.url || !media.publicId || !media.type) {
+                throw new BadRequestException(
+                    "Each media item must have url, publicId, and type"
+                );
+            }
+        }
+
         const document = await this.getDocumentOrThrow(model, documentId);
 
-        const hasPrimary = mediaList.some((m) => m.isPrimary);
+        const primaryCount = mediaList.filter((m) => m.isPrimary).length;
+        if (primaryCount > 1) {
+            throw new BadRequestException("Only one media item can be marked as primary");
+        }
+
+        const hasPrimary = primaryCount === 1;
         if (hasPrimary) {
             this.resetPrimaryMedia(document.media);
         }

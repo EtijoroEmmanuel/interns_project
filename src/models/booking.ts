@@ -8,6 +8,14 @@ export const BOOKING_STATUS = {
     ABANDONED: "ABANDONED",
 } as const;
 
+export const PAYMENT_STATUS = {
+    PENDING: "PENDING",
+    SUCCESSFUL: "SUCCESSFUL",
+    FAILED: "FAILED",
+    REFUNDED: "REFUNDED",
+    PARTIALLY_REFUNDED: "PARTIALLY_REFUNDED",
+} as const;
+
 const bookingSchema = new Schema(
     {
         user: {
@@ -62,12 +70,60 @@ const bookingSchema = new Schema(
 
         paymentReference: {
             type: String,
+            unique: true,
+            sparse: true,
+            index: true,
+        },
+
+        paymentStatus: {
+            type: String,
+            enum: Object.values(PAYMENT_STATUS),
+            default: PAYMENT_STATUS.PENDING,
+            index: true,
+        },
+
+        paymentMethod: {
+            type: String,
+            trim: true,
+        },
+
+        paymentChannel: {
+            type: String,
+            trim: true,
+        },
+
+        paidAt: {
+            type: Date,
+        },
+
+        refundAmount: {
+            type: Number,
+            default: 0,
+        },
+
+        refundPercentage: {
+            type: Number,
+            default: 0,
+        },
+
+        refundReference: {
+            type: String,
+        },
+
+        refundedAt: {
+            type: Date,
         },
     },
     {
         timestamps: true,
     }
 );
+
+bookingSchema.index({ paymentReference: 1 });
+
+bookingSchema.index({ user: 1, paymentStatus: 1 });
+
+bookingSchema.index({ paymentStatus: 1, createdAt: 1 });
 
 export type Booking = mongoose.InferSchemaType<typeof bookingSchema>;
 
