@@ -21,8 +21,14 @@ export class CloudinaryUtil {
     try {
       const timestamp = Math.floor(Date.now() / 1000);
 
+      // When using upload_preset, we need to include it in the signature
+      const paramsToSign = {
+        timestamp,
+        upload_preset: env.CLOUDINARY.UPLOAD_PRESET,
+      };
+
       const signature = cloudinary.utils.api_sign_request(
-        { timestamp },
+        paramsToSign,
         env.CLOUDINARY.API_SECRET
       );
 
