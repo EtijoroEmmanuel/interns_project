@@ -32,20 +32,64 @@ export class BookingRepository extends BaseRepository<Booking> {
     userId: string | Types.ObjectId,
     pagination: IPagination
   ): Promise<PaginatedResult<Booking>> {
-    return await paginate(
-      this.model,
-      { user: userId },
-      pagination,
-      { startDate: -1 }
-    );
+    const query = this.model
+      .find({ user: userId })
+      .populate({
+        path: "boat",
+        select: "boatName boatType description location capacity amenities pricePerHour media companyName",
+      })
+      .populate({
+        path: "user",
+        select: "email phoneNumber",
+      })
+      .sort({ startDate: -1 });
+
+    const countQuery = this.model.countDocuments({ user: userId });
+
+    const { page = 1, size = 10 } = pagination;
+    const skip = (page - 1) * size;
+
+    const [data, total] = await Promise.all([
+      query.skip(skip).limit(size).lean(),
+      countQuery,
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit: size,
+    };
   }
 
   async getAllBookings(pagination: IPagination): Promise<PaginatedResult<Booking>> {
-    return await paginate(
-      this.model,
-      {},
-      pagination,
-      { startDate: -1 }
-    );
+    const query = this.model
+      .find({})
+      .populate({
+        path: "boat",
+        select: "boatName boatType description location capacity amenities pricePerHour media companyName",
+      })
+      .populate({
+        path: "user",
+        select: "email phoneNumber",
+      })
+      .sort({ startDate: -1 });
+
+    const countQuery = this.model.countDocuments({});
+
+    const { page = 1, size = 10 } = pagination;
+    const skip = (page - 1) * size;
+
+    const [data, total] = await Promise.all([
+      query.skip(skip).limit(size).lean(),
+      countQuery,
+    ]);
+
+    return {
+      data,
+      total,
+      page,
+      limit: size,
+    };
   }
 }

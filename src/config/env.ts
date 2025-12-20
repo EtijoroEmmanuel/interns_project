@@ -19,6 +19,9 @@ const requiredEnvs = [
   "BCRYPT_SALT_ROUNDS",
   "BREVO_SENDER_EMAIL",
   "BREVO_API_KEY",
+  "PAYSTACK_SECRET_KEY",
+  "PAYSTACK_PUBLIC_KEY",
+  "FRONTEND_URL",
 ];
 
 for (const key of requiredEnvs) {
@@ -33,6 +36,7 @@ export const env: IENVIRONMENT = {
     PORT: parseInt(process.env.PORT!, 10),
     ENV: (process.env.NODE_ENV as Environment) || Environment.DEVELOPMENT,
     CLIENT: process.env.CLIENT!,
+    FRONTEND_URL: process.env.FRONTEND_URL!,
   },
 
   DB: {
@@ -49,10 +53,16 @@ export const env: IENVIRONMENT = {
     BREVO_SENDER_EMAIL: process.env.BREVO_SENDER_EMAIL!,
     BREVO_API_KEY: process.env.BREVO_API_KEY!,
   },
-  CLOUDINARY:{
+
+  CLOUDINARY: {
     UPLOAD_PRESET: process.env.UPLOAD_PRESET!,
     API_KEY: process.env.API_KEY!,
     API_SECRET: process.env.API_SECRET!,
     CLOUD_NAME: process.env.CLOUD_NAME!,
-  }
+  },
+
+  PAYSTACK: {
+    SECRET_KEY: process.env.PAYSTACK_SECRET_KEY!,
+    PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY!,
+  },
 };

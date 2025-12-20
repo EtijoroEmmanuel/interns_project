@@ -6,6 +6,7 @@ export interface IENVIRONMENT {
     PORT: number;
     ENV: Environment;
     CLIENT?: string;
+    FRONTEND_URL: string;
   };
   DB: {
     URL: string;
@@ -24,6 +25,11 @@ export interface IENVIRONMENT {
     API_KEY: string;
     API_SECRET: string;
     CLOUD_NAME: string;
+  };
+
+  PAYSTACK: {
+    SECRET_KEY: string;
+    PUBLIC_KEY: string;
   };
 }
 

@@ -12,7 +12,7 @@ export class BookingController {
     this.bookingService = new BookingService();
   }
 
-  createBooking = async (
+  initializeBooking = async (
     req: Request,
     res: Response,
     next: NextFunction
@@ -34,7 +34,7 @@ export class BookingController {
         specialRequest,
       } = value;
 
-      const booking = await this.bookingService.createBooking({
+      const result = await this.bookingService.initializeBooking({
         userId,
         boatId: new Types.ObjectId(boatId),
         startDate: new Date(startDate),
@@ -46,7 +46,59 @@ export class BookingController {
 
       res.status(201).json({
         success: true,
-        message: "Booking created successfully",
+        message: "Booking initialized. Please complete payment to confirm.",
+        data: {
+          booking: result.booking,
+          paymentUrl: result.paymentUrl,
+          paymentReference: result.paymentReference,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  verifyBookingPayment = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { reference } = req.params;
+
+      if (!reference) {
+        throw new Error("Payment reference is required");
+      }
+
+      const result = await this.bookingService.verifyAndConfirmBooking(reference);
+
+      res.status(200).json({
+        success: true,
+        message: result.message,
+        data: result.booking,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getBookingByReference = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    try {
+      const { reference } = req.params;
+
+      if (!reference) {
+        throw new Error("Payment reference is required");
+      }
+
+      const booking = await this.bookingService.getBookingByPaymentReference(reference);
+
+      res.status(200).json({
+        success: true,
+        message: "Booking retrieved successfully",
         data: booking,
       });
     } catch (error) {
@@ -66,7 +118,6 @@ export class BookingController {
 
       const userId: string | Types.ObjectId = req.user._id;
       
-      // Use reusable pagination utility
       const pagination = getPaginationParams(req.query);
 
       const bookings = await this.bookingService.getUserBookings(userId, pagination);
@@ -135,7 +186,7 @@ export class BookingController {
 
       res.status(200).json({
         success: true,
-        message: "Booking cancelled successfully",
+        message: "Booking cancelled and refund processed successfully",
         data: {
           booking: result.booking,
           refund: {

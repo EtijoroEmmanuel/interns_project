@@ -131,10 +131,16 @@ export const updateBoatSchema = Joi.object({
   });
 
 export const addMediaSchema = Joi.object({
-  mediaList: Joi.array().items(mediaItemSchema).min(1).required().messages({
-    "array.min": "At least one media item is required",
-    "any.required": "mediaList is required",
-  }),
+  mediaList: Joi.array()
+    .items(mediaItemSchema)
+    .min(1)
+    .max(5)
+    .required()
+    .messages({
+      "array.min": "At least one media item is required",
+      "array.max": "Cannot upload more than 5 media items at once",
+      "any.required": "mediaList is required",
+    }),
 });
 
 export const updatePrimaryMediaSchema = Joi.object({

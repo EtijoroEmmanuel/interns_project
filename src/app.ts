@@ -10,6 +10,7 @@ import uploadRoutes from "./routes/upload";
 import boatRoutes from "./routes/boat";
 import packageRoutes from "./routes/package";
 import bookingRoutes from "./routes/booking";
+import webhookRoutes from "./routes/webhook";
 
 dotenv.config();
 const app = express();
@@ -25,12 +26,20 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
 app.use(globalLimiter);
+
+app.use(
+  "/api/webhooks",
+  express.raw({ type: "application/json" }),
+  webhookRoutes
+);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 app.use(morgan("dev"));
+
 
 app.use("/api/auth", authRoutes);
 app.use("/api", uploadRoutes);
