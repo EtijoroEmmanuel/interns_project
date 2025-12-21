@@ -14,68 +14,28 @@ import { validate } from "../utils/validator";
 import ErrorResponse from "../utils/errorResponse";
 
 export class AuthController {
+  
   static async signup(req: Request, res: Response, next: NextFunction) {
     try {
       const value = validate(signupSchema, req.body);
       const { phoneNumber, email, password } = value;
 
-      const { user, message: otpMessage } = await AuthService.signup({
+      const { user, message } = await AuthService.signup({
         phoneNumber,
         email,
         password,
       });
 
-      const verificationToken = JWTUtil.generateVerificationToken(
-        user._id.toString(),
-        user.email
-      );
-
       res.status(201).json({
         success: true,
-        message: otpMessage,
-        verificationToken,
+        message,
         data: {
           id: user._id,
+          email: user.email,
           phoneNumber: user.phoneNumber,
           role: user.role,
-          email: user.email,
           isVerified: user.isVerified,
           createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-        },
-      });
-    } catch (err) {
-      next(err);
-    }
-  }
-
-  static async login(req: Request, res: Response, next: NextFunction) {
-    try {
-      const value = validate(loginSchema, req.body);
-      const { email, password } = value;
-
-      const { user } = await AuthService.login(email, password);
-
-      const payload = {
-        userId: user._id.toString(),
-        role: user.role,
-        email: user.email,
-      };
-
-      const accessToken = JWTUtil.generateToken(payload);
-
-      res.status(200).json({
-        success: true,
-        message: "Login successful",
-        data: {
-          id: user._id,
-          phoneNumber: user.phoneNumber,
-          role: user.role,
-          email: user.email,
-          isVerified: user.isVerified,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          accessToken,
         },
       });
     } catch (err) {
@@ -86,7 +46,7 @@ export class AuthController {
   static async verifyOtp(req: Request, res: Response, next: NextFunction) {
     try {
       const value = validate(verifyOtpSchema, req.body);
-      const {email, otp } = value;
+      const { email, otp } = value;
 
       const { message } = await AuthService.verifyOtp(email, otp);
 
@@ -105,7 +65,48 @@ export class AuthController {
       const { email } = value;
 
       const { message } = await AuthService.resendOtp(email);
-      res.status(200).json({ success: true, message });
+      
+      res.status(200).json({ 
+        success: true, 
+        message 
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async login(req: Request, res: Response, next: NextFunction) {
+    try {
+      const value = validate(loginSchema, req.body);
+      const { email, password } = value;
+
+      const { user } = await AuthService.login(email, password);
+
+      // Generate JWT access token
+      const payload = {
+        userId: user._id.toString(),
+        role: user.role,
+        email: user.email,
+      };
+
+      const accessToken = JWTUtil.generateToken(payload);
+
+      res.status(200).json({
+        success: true,
+        message: "Login successful",
+        data: {
+          user: {
+            id: user._id,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            role: user.role,
+            isVerified: user.isVerified,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt,
+          },
+          accessToken,
+        },
+      });
     } catch (err) {
       next(err);
     }
@@ -117,7 +118,11 @@ export class AuthController {
       const { email } = value;
 
       const { message } = await AuthService.forgotPassword(email);
-      res.status(200).json({ success: true, message });
+      
+      res.status(200).json({ 
+        success: true, 
+        message 
+      });
     } catch (err) {
       next(err);
     }
@@ -129,12 +134,16 @@ export class AuthController {
       const { email, otp, password } = value;
 
       const { message } = await AuthService.resetPassword(email, otp, password);
-      res.status(200).json({ success: true, message });
+      
+      res.status(200).json({ 
+        success: true, 
+        message 
+      });
     } catch (err) {
       next(err);
     }
   }
-  
+
   static async changePassword(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.user) {
@@ -150,7 +159,10 @@ export class AuthController {
         newPassword
       );
 
-      res.status(200).json({ success: true, message });
+      res.status(200).json({ 
+        success: true, 
+        message 
+      });
     } catch (err) {
       next(err);
     }

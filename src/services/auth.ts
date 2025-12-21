@@ -17,48 +17,65 @@ import {
 import { CryptoUtil } from "../utils/cryptoUtil";
 
 export class AuthService {
-  private static CLIENT_URL = env.APP.CLIENT;
-  private static OTP_TTL_MS = 10 * 60 * 1000;
+  private static OTP_TTL_MS = 10 * 60 * 1000; 
   private static MAX_OTP_ATTEMPTS = 5;
 
   private static generateOtp(): string {
     return crypto.randomInt(100000, 999999).toString();
   }
 
+  
   private static hashOtp(otp: string): string {
     return crypto.createHash("sha256").update(otp).digest("hex");
   }
 
+  
   static async signup(
     userData: Partial<UserType>
   ): Promise<{ user: UserDocument; message: string }> {
     const { password, email, ...rest } = userData;
 
-    if (!password) throw new BadRequestException("Password is required");
+    if (!password) {
+      throw new BadRequestException("Password is required");
+    }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) throw new ConflictException("Email already in use");
+    if (!email) {
+      throw new BadRequestException("Email is required");
+    }
 
+
+    const existingUser = await User.findOne({ email: email.toLowerCase() });
+    if (existingUser) {
+      throw new ConflictException("Email already in use");
+    }
+
+ 
     const hashedPassword = await CryptoUtil.hash(password);
+
     const otp = this.generateOtp();
+    const hashedOtp = this.hashOtp(otp);
 
     const user: UserDocument = await User.create({
       ...rest,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
       isVerified: false,
-      emailVerificationOtp: this.hashOtp(otp),
+      emailVerificationOtp: hashedOtp,
       emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
       emailVerificationAttempts: 0,
     });
 
+
     await sendEmail({
       to: user.email,
-      subject: "Your verification code",
+      subject: "Verify Your Email - Boat Cruise",
       html: verifyOtpTemplate(otp, user.email),
     });
 
-    return { user, message: "Account created. OTP sent to email." };
+    return { 
+      user, 
+      message: "Account created successfully. Please check your email for verification code." 
+    };
   }
 
   static async login(
@@ -70,18 +87,18 @@ export class AuthService {
     );
 
     if (!user) {
-      throw new UnauthorizedException("Incorrect email or password");
+      throw new UnauthorizedException("Invalid email or password");
     }
 
-    const isMatch = await CryptoUtil.compare(password, user.password!);
-
-    if (!isMatch) {
-      throw new UnauthorizedException("Incorrect email or password");
+    const isPasswordValid = await CryptoUtil.compare(password, user.password!);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException("Invalid email or password");
     }
 
+  
     if (!user.isVerified) {
       throw new ForbiddenException(
-        "User not verified. Please check your email."
+        "Please verify your email before logging in. Check your inbox for the verification code."
       );
     }
 
@@ -92,187 +109,185 @@ export class AuthService {
     email: string,
     otp: string
   ): Promise<{ message: string }> {
-    const user = await User.findOne({ email }).select(
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
       "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
     );
-    
-    if (!user) throw new NotFoundException("User not found");
-    if (user.isVerified) return { message: "Email is already verified" };
 
-    if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires)
-      throw new BadRequestException("No OTP found. Please request a new one.");
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+
+    if (user.isVerified) {
+      return { message: "Email is already verified. You can login now." };
+    }
+
+    if (!user.emailVerificationOtp || !user.emailVerificationOtpExpires) {
+      throw new BadRequestException(
+        "No verification code found. Please request a new one."
+      );
+    }
 
     if (user.emailVerificationOtpExpires.getTime() < Date.now()) {
-      await User.findOneAndUpdate(
-        { _id: user._id },
-        {
-          $unset: { 
-            emailVerificationOtp: "",
-            emailVerificationOtpExpires: ""
-          },
-          $set: { emailVerificationAttempts: 0 }
-        }
-      );
+      await User.findByIdAndUpdate(user._id, {
+        $unset: {
+          emailVerificationOtp: "",
+          emailVerificationOtpExpires: "",
+        },
+        $set: { emailVerificationAttempts: 0 },
+      });
       throw new BadRequestException(
-        "OTP has expired. Please request a new one."
+        "Verification code has expired. Please request a new one."
       );
     }
 
     const attempts = (user.emailVerificationAttempts || 0) + 1;
-    
     if (attempts > this.MAX_OTP_ATTEMPTS) {
-      await User.findOneAndUpdate(
-        { _id: user._id },
-        {
-          $unset: { 
-            emailVerificationOtp: "",
-            emailVerificationOtpExpires: ""
-          },
-          $set: { emailVerificationAttempts: 0 }
-        }
-      );
-      throw new BadRequestException(
-        "Too many attempts. OTP invalidated. Request a new one."
-      );
-    }
-
-    const hashed = this.hashOtp(otp);
-    if (hashed !== user.emailVerificationOtp) {
-      await User.findOneAndUpdate(
-        { _id: user._id },
-        { $set: { emailVerificationAttempts: attempts } }
-      );
-      throw new BadRequestException("Invalid OTP");
-    }
-
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: { 
-          isVerified: true,
-          emailVerificationAttempts: 0
-        },
-        $unset: { 
+      await User.findByIdAndUpdate(user._id, {
+        $unset: {
           emailVerificationOtp: "",
-          emailVerificationOtpExpires: ""
-        }
-      }
-    );
+          emailVerificationOtpExpires: "",
+        },
+        $set: { emailVerificationAttempts: 0 },
+      });
+      throw new BadRequestException(
+        "Too many failed attempts. Verification code invalidated. Please request a new one."
+      );
+    }
+
+    const hashedOtp = this.hashOtp(otp);
+    if (hashedOtp !== user.emailVerificationOtp) {
+      await User.findByIdAndUpdate(user._id, {
+        $set: { emailVerificationAttempts: attempts },
+      });
+      throw new BadRequestException(
+        `Invalid verification code. ${this.MAX_OTP_ATTEMPTS - attempts} attempts remaining.`
+      );
+    }
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        isVerified: true,
+        emailVerificationAttempts: 0,
+      },
+      $unset: {
+        emailVerificationOtp: "",
+        emailVerificationOtpExpires: "",
+      },
+    });
 
     await sendEmail({
       to: user.email,
-      subject: "Welcome to Boat Cruise!",
+      subject: "Welcome to Boat Cruise! 🎉",
       html: welcomeEmailTemplate(user.email),
     });
 
-    return { message: "Email verified successfully!" };
+    return { message: "Email verified successfully! You can now login." };
   }
 
   static async resendOtp(email: string): Promise<{ message: string }> {
-    const user = await User.findOne({ email }).select(
+    const user = await User.findOne({ email: email.toLowerCase() }).select(
       "+emailVerificationOtp +emailVerificationOtpExpires +emailVerificationAttempts"
     );
-    if (!user) throw new NotFoundException("User not found");
+
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
 
     const otp = this.generateOtp();
-    
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          emailVerificationOtp: this.hashOtp(otp),
-          emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
-          emailVerificationAttempts: 0
-        }
-      }
-    );
+    const hashedOtp = this.hashOtp(otp);
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        emailVerificationOtp: hashedOtp,
+        emailVerificationOtpExpires: new Date(Date.now() + this.OTP_TTL_MS),
+        emailVerificationAttempts: 0,
+      },
+    });
 
     await sendEmail({
       to: user.email,
-      subject: "Your verification code (resend)",
+      subject: "Your New Verification Code - Boat Cruise",
       html: verifyOtpTemplate(otp, user.email),
     });
 
-    return { message: "Verification OTP resent successfully" };
+    return { message: "Verification code sent successfully. Please check your email." };
   }
 
+
   static async forgotPassword(email: string): Promise<{ message: string }> {
-    const user = await User.findOne({ email });
-    if (!user) throw new NotFoundException("User not found");
+    const user = await User.findOne({ email: email.toLowerCase() });
+    
+    if (!user) {
+      throw new NotFoundException("No account found with this email");
+    }
 
     const otp = this.generateOtp();
-    
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          passwordResetToken: this.hashOtp(otp),
-          passwordResetExpires: new Date(Date.now() + this.OTP_TTL_MS),
-          passwordResetAttempts: 0
-        }
-      }
-    );
+    const hashedOtp = this.hashOtp(otp);
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        passwordResetToken: hashedOtp,
+        passwordResetExpires: new Date(Date.now() + this.OTP_TTL_MS),
+        passwordResetAttempts: 0,
+      },
+    });
 
     await sendEmail({
       to: user.email,
-      subject: "Reset Your Password",
+      subject: "Reset Your Password - Boat Cruise",
       html: resetPasswordTemplate(otp, user.email),
     });
 
-    return { message: "Password reset OTP sent to your email!" };
+    return { message: "Password reset code sent to your email." };
   }
 
   static async resetPassword(
     email: string,
     otp: string,
-    password: string
+    newPassword: string
   ): Promise<{ message: string }> {
     const hashedOtp = this.hashOtp(otp);
-    
+
     const user = await User.findOne({
-      email,
+      email: email.toLowerCase(),
       passwordResetToken: hashedOtp,
       passwordResetExpires: { $gt: new Date() },
     }).select("+passwordResetToken +passwordResetExpires +passwordResetAttempts");
-    
-    if (!user) throw new BadRequestException("Invalid or expired OTP");
+
+    if (!user) {
+      throw new BadRequestException("Invalid or expired reset code");
+    }
 
     const attempts = (user.passwordResetAttempts || 0) + 1;
-    
     if (attempts > this.MAX_OTP_ATTEMPTS) {
-      await User.findOneAndUpdate(
-        { _id: user._id },
-        {
-          $unset: { 
-            passwordResetToken: "",
-            passwordResetExpires: ""
-          },
-          $set: { passwordResetAttempts: 0 }
-        }
-      );
+      await User.findByIdAndUpdate(user._id, {
+        $unset: {
+          passwordResetToken: "",
+          passwordResetExpires: "",
+        },
+        $set: { passwordResetAttempts: 0 },
+      });
       throw new BadRequestException(
-        "Too many attempts. OTP invalidated. Request a new one."
+        "Too many failed attempts. Reset code invalidated. Please request a new one."
       );
     }
 
-    const hashedPassword = await CryptoUtil.hash(password);
-    
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          password: hashedPassword,
-          passwordResetAttempts: 0,
-          passwordChangedAt: new Date()
-        },
-        $unset: { 
-          passwordResetToken: "",
-          passwordResetExpires: ""
-        }
-      }
-    );
+    const hashedPassword = await CryptoUtil.hash(newPassword);
 
-    return { message: "Password reset successfully!" };
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        password: hashedPassword,
+        passwordResetAttempts: 0,
+        passwordChangedAt: new Date(),
+      },
+      $unset: {
+        passwordResetToken: "",
+        passwordResetExpires: "",
+      },
+    });
+
+    return { message: "Password reset successfully! You can now login with your new password." };
   }
 
   static async changePassword(
@@ -281,23 +296,28 @@ export class AuthService {
     newPassword: string
   ): Promise<{ message: string }> {
     const user = await User.findById(userId).select("+password");
-    if (!user) throw new BadRequestException("User not found");
+    
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
 
-    const isMatch = await CryptoUtil.compare(currentPassword, user.password!);
-    if (!isMatch)
+    const isPasswordValid = await CryptoUtil.compare(
+      currentPassword,
+      user.password!
+    );
+
+    if (!isPasswordValid) {
       throw new BadRequestException("Current password is incorrect");
+    }
 
     const hashedPassword = await CryptoUtil.hash(newPassword);
-    
-    await User.findOneAndUpdate(
-      { _id: user._id },
-      {
-        $set: {
-          password: hashedPassword,
-          passwordChangedAt: new Date()
-        }
-      }
-    );
+
+    await User.findByIdAndUpdate(user._id, {
+      $set: {
+        password: hashedPassword,
+        passwordChangedAt: new Date(),
+      },
+    });
 
     return { message: "Password changed successfully!" };
   }
