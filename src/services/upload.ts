@@ -17,7 +17,7 @@ interface DocumentWithMedia extends Document {
 }
 
 export class UploadService {
-    private static readonly MAX_MEDIA_UPLOADS = 5;
+    private static readonly MAX_MEDIA_UPLOADS = 10;
 
     static generateUploadSignature() {
         return CloudinaryUtil.generatePresignedSignature();
