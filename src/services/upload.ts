@@ -75,12 +75,6 @@ export class UploadService {
             throw new BadRequestException("Media list must be a non-empty array");
         }
 
-        if (mediaList.length > this.MAX_MEDIA_UPLOADS) {
-            throw new BadRequestException(
-                `Cannot upload more than ${this.MAX_MEDIA_UPLOADS} files at once`
-            );
-        }
-
         for (const media of mediaList) {
             if (!media.url || !media.publicId || !media.type) {
                 throw new BadRequestException(
